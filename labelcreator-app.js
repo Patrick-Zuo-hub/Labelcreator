@@ -218,12 +218,14 @@ function mountApp() {
       state.selectedIndex = 0;
       renderPreview(null);
       renderTable([]);
+      updateStatus(state.validationResult);
       return;
     }
 
     state.selectedIndex = Math.max(0, Math.min(state.records.length - 1, index));
     renderTable(state.records);
     renderPreview(toPreviewRecord(state.records[state.selectedIndex]));
+    updateStatus(state.validationResult);
   }
 
   function moveSelection(direction) {
