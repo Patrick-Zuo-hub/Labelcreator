@@ -32,6 +32,7 @@ const EMPTY_PREVIEW = {
 const state = {
   records: [],
   selectedIndex: 0,
+  previewError: null,
   validationResult: {
     records: [],
     errors: [],
@@ -132,10 +133,11 @@ function mountApp() {
       const svg = barcodeSvgMarkup(previewRecord.fnsku);
       elements.preview.barcode.setAttribute("viewBox", svg.viewBox);
       elements.preview.barcode.innerHTML = svg.markup;
+      state.previewError = null;
     } catch (error) {
       elements.preview.barcode.setAttribute("viewBox", "0 0 100 64");
       elements.preview.barcode.innerHTML = "";
-      elements.status.textContent = error.message;
+      state.previewError = error.message;
     }
   }
 
@@ -145,18 +147,26 @@ function mountApp() {
       return;
     }
 
+    if (state.previewError) {
+      elements.status.textContent = `预览条码渲染失败：${state.previewError}`;
+      return;
+    }
+
     if (result.errors.length > 0) {
       elements.status.textContent = `${result.errors.length} 个问题待修复。首条：${result.errors[0].message}`;
       return;
     }
 
     elements.status.textContent = mode === "validated"
-      ? `校验通过，共 ${result.records.length} 条记录，可导出 ZIP。`
+      ? `校验通过，共 ${result.records.length} 条记录。ZIP 导出将在后续任务中接入。`
       : `已载入 ${result.records.length} 条记录。`;
   }
 
   function updateToolbar(result) {
-    elements.exportZip.disabled = !result.canExport;
+    elements.exportZip.disabled = true;
+    elements.exportZip.title = result.records.length
+      ? "ZIP 导出将在后续任务中接入。"
+      : "";
   }
 
   function renderTable(records) {
@@ -245,6 +255,7 @@ function mountApp() {
   elements.clearData.addEventListener("click", () => {
     elements.pasteInput.value = "";
     state.records = [];
+    state.previewError = null;
     state.validationResult = { records: [], errors: [], canExport: false };
     state.selectedIndex = 0;
     renderTable([]);
