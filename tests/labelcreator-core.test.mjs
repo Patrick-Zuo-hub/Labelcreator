@@ -8,7 +8,45 @@ import {
   selectAdjacentIndex,
   toPreviewRecord,
 } from "../labelcreator-core.js";
-import { getStatusMessage } from "../labelcreator-app.js";
+import { getStatusMessage, mountApp } from "../labelcreator-app.js";
+
+function createMockElement(tagName = "div") {
+  return {
+    tagName,
+    textContent: "",
+    value: "",
+    innerHTML: "",
+    disabled: false,
+    title: "",
+    dataset: {},
+    tabIndex: 0,
+    children: [],
+    listeners: {},
+    classList: {
+      add() {},
+      toggle() {},
+    },
+    addEventListener(type, handler) {
+      this.listeners[type] = handler;
+    },
+    appendChild(child) {
+      this.children.push(child);
+      return child;
+    },
+    remove() {
+      this.removed = true;
+    },
+    setAttribute(name, value) {
+      this[name] = value;
+    },
+    querySelector() {
+      return null;
+    },
+    focus() {
+      this.focused = true;
+    },
+  };
+}
 
 test("parseBatchText returns one normalized record for one pasted row", () => {
   const rows = parseBatchText("SKU-1\tX001\tMFG-1\t中文名\tItem Name\tNA");
@@ -126,6 +164,65 @@ test("getStatusMessage keeps validated export blocked when label data is not ASC
     /当前无法导出 PDF/,
   );
   assert.equal(buildExportJobs(result.records).length, 0);
+});
+
+test("mountApp keeps validated status wording through the real validate button flow", () => {
+  const elements = new Map();
+  const ids = [
+    "pasteInput",
+    "clearData",
+    "validateData",
+    "exportZip",
+    "status",
+    "recordsBody",
+    "vManufactureSku",
+    "vFnsku",
+    "vSku",
+    "vItemName",
+    "vStoreName",
+    "vCondition",
+    "barcodePreview",
+  ];
+
+  for (const id of ids) {
+    elements.set(id, createMockElement(id === "barcodePreview" ? "svg" : "div"));
+  }
+
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+
+  globalThis.document = {
+    getElementById(id) {
+      return elements.get(id) || null;
+    },
+    createElement(tagName) {
+      return createMockElement(tagName);
+    },
+    body: createMockElement("body"),
+  };
+  globalThis.window = {};
+
+  try {
+    assert.equal(mountApp(), true);
+
+    const pasteInput = elements.get("pasteInput");
+    const validateData = elements.get("validateData");
+    const status = elements.get("status");
+
+    pasteInput.value = "SKU-1\tX001\tMFG-1\t中文名 1\tItem One\tNA";
+    pasteInput.listeners.input();
+    assert.equal(status.textContent, "已载入 1 条记录，尚未校验。");
+
+    validateData.listeners.click();
+    assert.equal(status.textContent, "校验通过，共 1 条记录。可以导出 ZIP。");
+
+    pasteInput.value = "SKU-2\tX002\tMFG-2\t中文名 2\t咖啡凳\tNA";
+    validateData.listeners.click();
+    assert.match(status.textContent, /当前无法导出 PDF/);
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+  }
 });
 
 test("buildPdfFilename uses the agreed naming rule and replaces unsafe characters", () => {

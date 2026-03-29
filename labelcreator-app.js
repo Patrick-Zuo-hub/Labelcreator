@@ -104,11 +104,11 @@ function mountApp() {
     }
   }
 
-  function updateStatus(result) {
+  function updateStatus(result, mode = "live") {
     elements.status.textContent = getStatusMessage(result, {
       isExporting: state.isExporting,
       previewError: state.previewError,
-    });
+    }, mode);
   }
 
   function updateToolbar(result) {
