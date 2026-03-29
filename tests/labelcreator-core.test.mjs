@@ -11,11 +11,11 @@ import {
 import { getStatusMessage, mountApp } from "../labelcreator-app.js";
 
 function createMockElement(tagName = "div") {
-  return {
+  const classNames = new Set();
+  const element = {
     tagName,
     textContent: "",
     value: "",
-    innerHTML: "",
     disabled: false,
     title: "",
     dataset: {},
@@ -23,8 +23,34 @@ function createMockElement(tagName = "div") {
     children: [],
     listeners: {},
     classList: {
-      add() {},
-      toggle() {},
+      add(...names) {
+        names.forEach((name) => classNames.add(name));
+      },
+      remove(...names) {
+        names.forEach((name) => classNames.delete(name));
+      },
+      toggle(name, force) {
+        if (force === undefined) {
+          if (classNames.has(name)) {
+            classNames.delete(name);
+            return false;
+          }
+
+          classNames.add(name);
+          return true;
+        }
+
+        if (force) {
+          classNames.add(name);
+          return true;
+        }
+
+        classNames.delete(name);
+        return false;
+      },
+      contains(name) {
+        return classNames.has(name);
+      },
     },
     addEventListener(type, handler) {
       this.listeners[type] = handler;
@@ -39,13 +65,32 @@ function createMockElement(tagName = "div") {
     setAttribute(name, value) {
       this[name] = value;
     },
-    querySelector() {
-      return null;
+    querySelector(selector) {
+      const match = selector.match(/^\[data-index="(\d+)"\]$/);
+      if (!match) {
+        return null;
+      }
+
+      return this.children.find((child) => child.dataset?.index === match[1]) || null;
     },
     focus() {
       this.focused = true;
     },
   };
+
+  Object.defineProperty(element, "innerHTML", {
+    get() {
+      return this._innerHTML || "";
+    },
+    set(value) {
+      this._innerHTML = value;
+      if (value === "") {
+        this.children = [];
+      }
+    },
+  });
+
+  return element;
 }
 
 test("parseBatchText returns one normalized record for one pasted row", () => {
@@ -182,6 +227,10 @@ test("mountApp keeps validated status wording through the real validate button f
     "vStoreName",
     "vCondition",
     "barcodePreview",
+    "prevRecord",
+    "nextRecord",
+    "previewPosition",
+    "recordInspector",
   ];
 
   for (const id of ids) {
@@ -219,6 +268,151 @@ test("mountApp keeps validated status wording through the real validate button f
     pasteInput.value = "SKU-2\tX002\tMFG-2\t中文名 2\t咖啡凳\tNA";
     validateData.listeners.click();
     assert.match(status.textContent, /当前无法导出 PDF/);
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+  }
+});
+
+test("mountApp preserves validated status while selecting a different row from the same dataset", () => {
+  const elements = new Map();
+  const ids = [
+    "pasteInput",
+    "clearData",
+    "validateData",
+    "exportZip",
+    "status",
+    "recordsBody",
+    "vManufactureSku",
+    "vFnsku",
+    "vSku",
+    "vItemName",
+    "vStoreName",
+    "vCondition",
+    "barcodePreview",
+    "prevRecord",
+    "nextRecord",
+    "previewPosition",
+    "recordInspector",
+  ];
+
+  for (const id of ids) {
+    elements.set(id, createMockElement(id === "barcodePreview" ? "svg" : "div"));
+  }
+
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+
+  globalThis.document = {
+    getElementById(id) {
+      return elements.get(id) || null;
+    },
+    createElement(tagName) {
+      return createMockElement(tagName);
+    },
+    body: createMockElement("body"),
+  };
+  globalThis.window = {};
+
+  try {
+    assert.equal(mountApp(), true);
+
+    const pasteInput = elements.get("pasteInput");
+    const validateData = elements.get("validateData");
+    const recordsBody = elements.get("recordsBody");
+    const status = elements.get("status");
+    const nextRecord = elements.get("nextRecord");
+
+    pasteInput.value = [
+      "SKU-1\tX001\tMFG-1\t中文名 1\tItem One\tNA",
+      "SKU-2\tX002\tMFG-2\t中文名 2\tItem Two\tNA",
+    ].join("\n");
+    pasteInput.listeners.input();
+    validateData.listeners.click();
+
+    assert.equal(status.textContent, "校验通过，共 2 条记录。可以导出 ZIP。");
+    recordsBody.children[1].listeners.click();
+    assert.equal(status.textContent, "校验通过，共 2 条记录。可以导出 ZIP。");
+
+    nextRecord.listeners.click();
+    assert.equal(status.textContent, "校验通过，共 2 条记录。可以导出 ZIP。");
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+  }
+});
+
+test("mountApp shows selected row error reasons and preview navigation state", () => {
+  const elements = new Map();
+  const ids = [
+    "pasteInput",
+    "clearData",
+    "validateData",
+    "exportZip",
+    "status",
+    "recordsBody",
+    "vManufactureSku",
+    "vFnsku",
+    "vSku",
+    "vItemName",
+    "vStoreName",
+    "vCondition",
+    "barcodePreview",
+    "prevRecord",
+    "nextRecord",
+    "previewPosition",
+    "recordInspector",
+  ];
+
+  for (const id of ids) {
+    elements.set(id, createMockElement(id === "barcodePreview" ? "svg" : "div"));
+  }
+
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+
+  globalThis.document = {
+    getElementById(id) {
+      return elements.get(id) || null;
+    },
+    createElement(tagName) {
+      return createMockElement(tagName);
+    },
+    body: createMockElement("body"),
+  };
+  globalThis.window = {};
+
+  try {
+    assert.equal(mountApp(), true);
+
+    const pasteInput = elements.get("pasteInput");
+    const recordsBody = elements.get("recordsBody");
+    const previewPosition = elements.get("previewPosition");
+    const recordInspector = elements.get("recordInspector");
+    const prevRecord = elements.get("prevRecord");
+    const nextRecord = elements.get("nextRecord");
+
+    pasteInput.value = [
+      "SKU-1\t\tMFG-1\t中文名 1\tItem One\tBAD",
+      "SKU-2\tX002\tMFG-2\t中文名 2\tItem Two\tNA",
+    ].join("\n");
+    pasteInput.listeners.input();
+
+    assert.match(recordInspector.textContent, /FNSKU/);
+    assert.match(recordInspector.textContent, /Store Name/);
+    assert.equal(previewPosition.textContent, "第 1 / 2 条");
+    assert.equal(prevRecord.disabled, true);
+    assert.equal(nextRecord.disabled, false);
+
+    nextRecord.listeners.click();
+    assert.equal(previewPosition.textContent, "第 2 / 2 条");
+    assert.match(recordInspector.textContent, /当前记录校验通过/);
+    assert.equal(prevRecord.disabled, false);
+    assert.equal(nextRecord.disabled, true);
+
+    recordsBody.children[0].listeners.click();
+    assert.equal(previewPosition.textContent, "第 1 / 2 条");
+    assert.match(recordInspector.textContent, /FNSKU/);
   } finally {
     globalThis.document = originalDocument;
     globalThis.window = originalWindow;
@@ -340,4 +534,49 @@ test("buildExportJobs blocks otherwise valid rows whose label data is not ASCII-
 
   assert.equal(result.canExport, true);
   assert.equal(buildExportJobs(result.records).length, 0);
+});
+
+test("buildExportJobs keeps one PDF per validated row when filenames collide", () => {
+  const jobs = buildExportJobs([
+    {
+      rowNumber: 1,
+      sku: "SKU-1",
+      fnsku: "X001",
+      manufactureSku: "MFG-1",
+      productChineseName: "中文名 1",
+      itemName: "Item One",
+      storeName: "NA",
+      condition: "NEW",
+      errors: [],
+    },
+    {
+      rowNumber: 2,
+      sku: "SKU-2",
+      fnsku: "X001",
+      manufactureSku: "MFG-2",
+      productChineseName: "中文名 1",
+      itemName: "Item Two",
+      storeName: "NA",
+      condition: "NEW",
+      errors: [],
+    },
+    {
+      rowNumber: 3,
+      sku: "SKU-3",
+      fnsku: "X001",
+      manufactureSku: "MFG-3",
+      productChineseName: "中文名 1",
+      itemName: "Item Three",
+      storeName: "NA",
+      condition: "NEW",
+      errors: [],
+    },
+  ]);
+
+  assert.equal(jobs.length, 3);
+  assert.deepEqual(jobs.map((job) => job.filename), [
+    "【标签】--中文名 1--NA--X001.pdf",
+    "【标签】--中文名 1--NA--X001 (2).pdf",
+    "【标签】--中文名 1--NA--X001 (3).pdf",
+  ]);
 });

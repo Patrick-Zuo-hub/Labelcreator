@@ -16,17 +16,77 @@ const EMPTY_PREVIEW = {
   condition: "NEW",
 };
 
+const FIELD_LABELS = {
+  row: "整行数据",
+  sku: "SKU",
+  fnsku: "FNSKU",
+  manufactureSku: "Manufacture SKU",
+  productChineseName: "产品中文名称",
+  itemName: "Item Name",
+  storeName: "Store Name",
+};
+
 const state = {
   records: [],
   selectedIndex: 0,
   isExporting: false,
   previewError: null,
+  statusMode: "live",
+  validatedRecordKey: null,
   validationResult: {
     records: [],
     errors: [],
     canExport: false,
   },
 };
+
+function buildDatasetKey(records) {
+  return JSON.stringify(
+    records.map((record) => ({
+      rowNumber: record.rowNumber,
+      sku: record.sku,
+      fnsku: record.fnsku,
+      manufactureSku: record.manufactureSku,
+      productChineseName: record.productChineseName,
+      itemName: record.itemName,
+      storeName: record.storeName,
+      rawColumns: record.rawColumns,
+    })),
+  );
+}
+
+function formatRecordError(error) {
+  const fieldLabel = FIELD_LABELS[error.field] || error.field || "字段";
+
+  if (error.field === "row") {
+    return `${fieldLabel}: 必须恰好包含 6 列`;
+  }
+
+  if (error.message.includes("is required")) {
+    return `${fieldLabel}: 必填`;
+  }
+
+  if (error.field === "storeName" && error.message.includes("must be one of")) {
+    return `${fieldLabel}: 仅支持 NA、EU、AU、Walmart-US`;
+  }
+
+  return `${fieldLabel}: ${error.message}`;
+}
+
+function summarizeRecordErrors(record) {
+  if (!record?.errors?.length) {
+    return {
+      shortText: "通过",
+      fullText: "当前记录校验通过。",
+    };
+  }
+
+  const details = record.errors.map(formatRecordError);
+  return {
+    shortText: `${details.length} 处错误`,
+    fullText: details.join("\n"),
+  };
+}
 
 export function getStatusMessage(result, uiState = {}, mode = "live") {
   const exportJobs = buildExportJobs(result.records);
@@ -67,6 +127,10 @@ function mountApp() {
     exportZip: document.getElementById("exportZip"),
     status: document.getElementById("status"),
     recordsBody: document.getElementById("recordsBody"),
+    prevRecord: document.getElementById("prevRecord"),
+    nextRecord: document.getElementById("nextRecord"),
+    previewPosition: document.getElementById("previewPosition"),
+    recordInspector: document.getElementById("recordInspector"),
     preview: {
       manufactureSku: document.getElementById("vManufactureSku"),
       fnsku: document.getElementById("vFnsku"),
@@ -104,7 +168,37 @@ function mountApp() {
     }
   }
 
-  function updateStatus(result, mode = "live") {
+  function renderRecordInspector(record) {
+    if (!elements.recordInspector) {
+      return;
+    }
+
+    if (!record) {
+      elements.recordInspector.textContent = "选择一条记录后，这里会显示当前行的校验结果与错误原因。";
+      return;
+    }
+
+    elements.recordInspector.textContent = summarizeRecordErrors(record).fullText;
+  }
+
+  function updatePreviewNavigation() {
+    if (!elements.previewPosition || !elements.prevRecord || !elements.nextRecord) {
+      return;
+    }
+
+    if (!state.records.length) {
+      elements.previewPosition.textContent = "未选择记录";
+      elements.prevRecord.disabled = true;
+      elements.nextRecord.disabled = true;
+      return;
+    }
+
+    elements.previewPosition.textContent = `第 ${state.selectedIndex + 1} / ${state.records.length} 条`;
+    elements.prevRecord.disabled = state.selectedIndex === 0;
+    elements.nextRecord.disabled = state.selectedIndex >= state.records.length - 1;
+  }
+
+  function updateStatus(result, mode = state.statusMode) {
     elements.status.textContent = getStatusMessage(result, {
       isExporting: state.isExporting,
       previewError: state.previewError,
@@ -177,6 +271,12 @@ function mountApp() {
         row.appendChild(cell);
       }
 
+      const recordStatus = summarizeRecordErrors(record);
+      const statusCell = document.createElement("td");
+      statusCell.textContent = recordStatus.shortText;
+      statusCell.title = recordStatus.fullText;
+      row.appendChild(statusCell);
+
       row.addEventListener("click", () => {
         selectRecord(index);
       });
@@ -198,6 +298,8 @@ function mountApp() {
       state.selectedIndex = 0;
       renderPreview(null);
       renderTable([]);
+      renderRecordInspector(null);
+      updatePreviewNavigation();
       updateStatus(state.validationResult);
       return;
     }
@@ -205,6 +307,8 @@ function mountApp() {
     state.selectedIndex = Math.max(0, Math.min(state.records.length - 1, index));
     renderTable(state.records);
     renderPreview(toPreviewRecord(state.records[state.selectedIndex]));
+    renderRecordInspector(state.records[state.selectedIndex]);
+    updatePreviewNavigation();
     updateStatus(state.validationResult);
   }
 
@@ -221,13 +325,17 @@ function mountApp() {
   function syncFromTextarea() {
     const parsed = parseBatchText(elements.pasteInput.value);
     const result = validateRecords(parsed);
+    const datasetKey = buildDatasetKey(result.records);
 
     state.records = result.records;
     state.validationResult = result;
     state.selectedIndex = 0;
+    state.statusMode = result.records.length > 0 && datasetKey === state.validatedRecordKey ? "validated" : "live";
 
     renderTable(result.records);
     renderPreview(result.records[0] ? toPreviewRecord(result.records[0]) : null);
+    renderRecordInspector(result.records[0] || null);
+    updatePreviewNavigation();
     updateStatus(result);
     updateToolbar(result);
   }
@@ -239,10 +347,14 @@ function mountApp() {
     state.records = [];
     state.isExporting = false;
     state.previewError = null;
+    state.statusMode = "live";
+    state.validatedRecordKey = null;
     state.validationResult = { records: [], errors: [], canExport: false };
     state.selectedIndex = 0;
     renderTable([]);
     renderPreview(null);
+    renderRecordInspector(null);
+    updatePreviewNavigation();
     updateStatus(state.validationResult);
     updateToolbar(state.validationResult);
   });
@@ -250,26 +362,41 @@ function mountApp() {
   elements.validateData.addEventListener("click", () => {
     const parsed = parseBatchText(elements.pasteInput.value);
     const result = validateRecords(parsed);
+    const datasetKey = buildDatasetKey(result.records);
 
     state.records = result.records;
     state.validationResult = result;
+    state.statusMode = result.records.length > 0 ? "validated" : "live";
+    state.validatedRecordKey = result.records.length > 0 ? datasetKey : null;
     if (state.records.length > 0) {
       state.selectedIndex = Math.min(state.selectedIndex, state.records.length - 1);
       renderTable(state.records);
       renderPreview(toPreviewRecord(state.records[state.selectedIndex]));
+      renderRecordInspector(state.records[state.selectedIndex]);
+      updatePreviewNavigation();
     } else {
       state.selectedIndex = 0;
       renderTable([]);
       renderPreview(null);
+      renderRecordInspector(null);
+      updatePreviewNavigation();
     }
     updateStatus(result, "validated");
     updateToolbar(result);
   });
 
+  elements.prevRecord?.addEventListener("click", () => {
+    moveSelection(-1);
+  });
+
+  elements.nextRecord?.addEventListener("click", () => {
+    moveSelection(1);
+  });
+
   elements.exportZip.addEventListener("click", async () => {
     const exportJobs = buildExportJobs(state.validationResult.records);
     if (!state.validationResult.canExport || exportJobs.length !== state.validationResult.records.length) {
-      updateStatus(state.validationResult, "validated");
+      updateStatus(state.validationResult, state.statusMode);
       return;
     }
 
@@ -290,6 +417,8 @@ function mountApp() {
   });
 
   renderPreview(null);
+  renderRecordInspector(null);
+  updatePreviewNavigation();
   updateStatus(state.validationResult);
   updateToolbar(state.validationResult);
 

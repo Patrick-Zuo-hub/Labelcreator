@@ -91,9 +91,18 @@ export function buildPdfFilename(record) {
   return `【标签】--${safe(record.productChineseName)}--${safe(record.storeName)}--${safe(record.fnsku)}.pdf`;
 }
 
+function withFilenameSuffix(filename, suffixNumber) {
+  if (suffixNumber <= 1) {
+    return filename;
+  }
+
+  return filename.replace(/\.pdf$/i, ` (${suffixNumber}).pdf`);
+}
+
 export function buildExportJobs(records) {
-  return records
-    .flatMap((record) => {
+  const filenameCounts = new Map();
+
+  return records.flatMap((record) => {
       if (!Array.isArray(record.errors) || record.errors.length > 0) {
         return [];
       }
@@ -104,8 +113,12 @@ export function buildExportJobs(records) {
         return [];
       }
 
+      const baseFilename = buildPdfFilename(record);
+      const nextCount = (filenameCounts.get(baseFilename) || 0) + 1;
+      filenameCounts.set(baseFilename, nextCount);
+
       return [{
-        filename: buildPdfFilename(record),
+        filename: withFilenameSuffix(baseFilename, nextCount),
         labelData,
       }];
     });
