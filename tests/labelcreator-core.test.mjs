@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseBatchText } from "../labelcreator-core.js";
+import {
+  parseBatchText,
+  validateRecords,
+  buildPdfFilename,
+  selectAdjacentIndex,
+} from "../labelcreator-core.js";
 
 test("parseBatchText returns one normalized record for one pasted row", () => {
   const rows = parseBatchText("SKU-1\tX001\tMFG-1\t中文名\tItem Name\tNA");
@@ -70,4 +75,34 @@ test("parseBatchText preserves rows with missing columns for later validation", 
 
   assert.equal(rows[0].rawColumns.length, 4);
   assert.equal(rows[0].itemName, "");
+});
+
+test("validateRecords blocks rows with missing required fields and invalid store values", () => {
+  const rows = parseBatchText([
+    "SKU-1\tX001\tMFG-1\t中文名 1\tItem One\tNA",
+    "SKU-2\t\tMFG-2\t中文名 2\tItem Two\tBAD",
+  ].join("\n"));
+
+  const result = validateRecords(rows);
+
+  assert.equal(result.canExport, false);
+  assert.equal(result.errors.length, 2);
+  assert.match(result.errors[0].message, /FNSKU/);
+  assert.match(result.errors[1].message, /Store Name/);
+});
+
+test("buildPdfFilename uses the agreed naming rule and replaces unsafe characters", () => {
+  const filename = buildPdfFilename({
+    productChineseName: "浴室凳/24",
+    storeName: "NA",
+    fnsku: "X001:ABC",
+  });
+
+  assert.equal(filename, "【标签】--浴室凳-24--NA--X001-ABC.pdf");
+});
+
+test("selectAdjacentIndex clamps previous and next navigation at the edges", () => {
+  assert.equal(selectAdjacentIndex(0, 3, -1), 0);
+  assert.equal(selectAdjacentIndex(0, 3, 1), 1);
+  assert.equal(selectAdjacentIndex(2, 3, 1), 2);
 });
