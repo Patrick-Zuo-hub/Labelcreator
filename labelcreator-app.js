@@ -74,11 +74,8 @@ function mountApp() {
   }
 
   function updateStatus(result) {
-    const exportButton = elements.exportZip;
     const exportJobs = buildExportJobs(result.records);
     const blockedExportCount = result.records.length - exportJobs.length;
-
-    exportButton.disabled = !result.canExport;
 
     if (state.isExporting) {
       elements.status.textContent = `正在导出 ${exportJobs.length} 个 PDF 到 ZIP...`;
