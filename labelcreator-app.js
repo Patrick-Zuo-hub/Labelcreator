@@ -73,9 +73,12 @@ function mountApp() {
     }
   }
 
-  function updateStatus(result, mode = "live") {
+  function updateStatus(result) {
+    const exportButton = elements.exportZip;
     const exportJobs = buildExportJobs(result.records);
     const blockedExportCount = result.records.length - exportJobs.length;
+
+    exportButton.disabled = !result.canExport;
 
     if (state.isExporting) {
       elements.status.textContent = `正在导出 ${exportJobs.length} 个 PDF 到 ZIP...`;
@@ -83,7 +86,7 @@ function mountApp() {
     }
 
     if (!result.records.length) {
-      elements.status.textContent = "等待粘贴批量数据。";
+      elements.status.textContent = "请先粘贴 Excel 表格数据。";
       return;
     }
 
@@ -93,18 +96,16 @@ function mountApp() {
     }
 
     if (result.errors.length > 0) {
-      elements.status.textContent = `${result.errors.length} 个问题待修复。首条：${result.errors[0].message}`;
+      elements.status.textContent = `共有 ${result.errors.length} 处错误，修正后才能导出 ZIP。`;
       return;
     }
 
     if (blockedExportCount > 0) {
-      elements.status.textContent = `${blockedExportCount} 条记录当前无法导出 PDF。PDF 导出仅支持 ASCII 标签字段（Manufacture SKU / FNSKU / SKU / Item Name / Store Name）。`;
+      elements.status.textContent = `${blockedExportCount} 条记录包含当前无法导出 PDF 的内容，修正后才能导出 ZIP。PDF 导出仅支持 ASCII 标签字段（Manufacture SKU / FNSKU / SKU / Item Name / Store Name）。`;
       return;
     }
 
-    elements.status.textContent = mode === "validated"
-      ? `校验通过，共 ${result.records.length} 条记录。可以导出 ZIP。`
-      : `已载入 ${result.records.length} 条记录。`;
+    elements.status.textContent = `已载入 ${result.records.length} 条记录，可以导出 ZIP。`;
   }
 
   function updateToolbar(result) {

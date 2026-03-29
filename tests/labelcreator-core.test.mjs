@@ -93,6 +93,14 @@ test("validateRecords blocks rows with missing required fields and invalid store
   assert.match(result.errors[1].message, /Store Name/);
 });
 
+test("validateRecords only allows export when every parsed row is valid", () => {
+  const empty = validateRecords([]);
+  assert.equal(empty.canExport, false);
+
+  const valid = validateRecords(parseBatchText("SKU-1\tX001\tMFG-1\t中文名 1\tItem One\tNA"));
+  assert.equal(valid.canExport, true);
+});
+
 test("buildPdfFilename uses the agreed naming rule and replaces unsafe characters", () => {
   const filename = buildPdfFilename({
     productChineseName: "浴室凳/24",
