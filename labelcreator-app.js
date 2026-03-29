@@ -28,6 +28,37 @@ const state = {
   },
 };
 
+export function getStatusMessage(result, uiState = {}, mode = "live") {
+  const exportJobs = buildExportJobs(result.records);
+  const blockedExportCount = result.records.length - exportJobs.length;
+
+  if (uiState.isExporting) {
+    return `正在导出 ${exportJobs.length} 个 PDF 到 ZIP...`;
+  }
+
+  if (!result.records.length) {
+    return "请先粘贴 Excel 表格数据。";
+  }
+
+  if (uiState.previewError) {
+    return `预览条码渲染失败：${uiState.previewError}`;
+  }
+
+  if (result.errors.length > 0) {
+    return `共有 ${result.errors.length} 处错误，修正后才能导出 ZIP。`;
+  }
+
+  if (mode === "validated") {
+    if (blockedExportCount > 0) {
+      return `${blockedExportCount} 条记录包含当前无法导出 PDF 的内容，修正后才能导出 ZIP。PDF 导出仅支持 ASCII 标签字段（Manufacture SKU / FNSKU / SKU / Item Name / Store Name）。`;
+    }
+
+    return `校验通过，共 ${result.records.length} 条记录。可以导出 ZIP。`;
+  }
+
+  return `已载入 ${result.records.length} 条记录，尚未校验。`;
+}
+
 function mountApp() {
   const elements = {
     pasteInput: document.getElementById("pasteInput"),
@@ -74,35 +105,10 @@ function mountApp() {
   }
 
   function updateStatus(result) {
-    const exportJobs = buildExportJobs(result.records);
-    const blockedExportCount = result.records.length - exportJobs.length;
-
-    if (state.isExporting) {
-      elements.status.textContent = `正在导出 ${exportJobs.length} 个 PDF 到 ZIP...`;
-      return;
-    }
-
-    if (!result.records.length) {
-      elements.status.textContent = "请先粘贴 Excel 表格数据。";
-      return;
-    }
-
-    if (state.previewError) {
-      elements.status.textContent = `预览条码渲染失败：${state.previewError}`;
-      return;
-    }
-
-    if (result.errors.length > 0) {
-      elements.status.textContent = `共有 ${result.errors.length} 处错误，修正后才能导出 ZIP。`;
-      return;
-    }
-
-    if (blockedExportCount > 0) {
-      elements.status.textContent = `${blockedExportCount} 条记录包含当前无法导出 PDF 的内容，修正后才能导出 ZIP。PDF 导出仅支持 ASCII 标签字段（Manufacture SKU / FNSKU / SKU / Item Name / Store Name）。`;
-      return;
-    }
-
-    elements.status.textContent = `已载入 ${result.records.length} 条记录，可以导出 ZIP。`;
+    elements.status.textContent = getStatusMessage(result, {
+      isExporting: state.isExporting,
+      previewError: state.previewError,
+    });
   }
 
   function updateToolbar(result) {

@@ -8,6 +8,7 @@ import {
   selectAdjacentIndex,
   toPreviewRecord,
 } from "../labelcreator-core.js";
+import { getStatusMessage } from "../labelcreator-app.js";
 
 test("parseBatchText returns one normalized record for one pasted row", () => {
   const rows = parseBatchText("SKU-1\tX001\tMFG-1\t中文名\tItem Name\tNA");
@@ -99,6 +100,32 @@ test("validateRecords only allows export when every parsed row is valid", () => 
 
   const valid = validateRecords(parseBatchText("SKU-1\tX001\tMFG-1\t中文名 1\tItem One\tNA"));
   assert.equal(valid.canExport, true);
+});
+
+test("getStatusMessage distinguishes loaded rows from validated rows", () => {
+  const loaded = getStatusMessage(
+    validateRecords(parseBatchText("SKU-1\tX001\tMFG-1\t中文名 1\tItem One\tNA")),
+    { isExporting: false, previewError: null },
+  );
+  const validated = getStatusMessage(
+    validateRecords(parseBatchText("SKU-1\tX001\tMFG-1\t中文名 1\tItem One\tNA")),
+    { isExporting: false, previewError: null },
+    "validated",
+  );
+
+  assert.equal(loaded, "已载入 1 条记录，尚未校验。");
+  assert.equal(validated, "校验通过，共 1 条记录。可以导出 ZIP。");
+});
+
+test("getStatusMessage keeps validated export blocked when label data is not ASCII-safe", () => {
+  const result = validateRecords(parseBatchText("SKU-1\tX001\tMFG-1\t中文名 1\t咖啡凳\tNA"));
+
+  assert.equal(result.canExport, true);
+  assert.match(
+    getStatusMessage(result, { isExporting: false, previewError: null }, "validated"),
+    /当前无法导出 PDF/,
+  );
+  assert.equal(buildExportJobs(result.records).length, 0);
 });
 
 test("buildPdfFilename uses the agreed naming rule and replaces unsafe characters", () => {
@@ -209,4 +236,11 @@ test("buildExportJobs excludes rows with validation errors, raw rows without val
 
   assert.equal(jobs.length, 1);
   assert.equal(jobs[0].filename, "【标签】--中文名 1--NA--X001.pdf");
+});
+
+test("buildExportJobs blocks otherwise valid rows whose label data is not ASCII-safe", () => {
+  const result = validateRecords(parseBatchText("SKU-1\tX001\tMFG-1\t中文名 1\t咖啡凳\tNA"));
+
+  assert.equal(result.canExport, true);
+  assert.equal(buildExportJobs(result.records).length, 0);
 });
