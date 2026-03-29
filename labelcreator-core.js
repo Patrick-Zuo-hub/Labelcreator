@@ -12,6 +12,10 @@ function cleanCell(value) {
   return String(value ?? "").trim();
 }
 
+function isAsciiPdfValue(value) {
+  return !/[^\x20-\x7E]/.test(String(value ?? ""));
+}
+
 export function parseBatchText(text) {
   const lines = String(text || "").split(/\r?\n/);
   const records = [];
@@ -89,11 +93,22 @@ export function buildPdfFilename(record) {
 
 export function buildExportJobs(records) {
   return records
-    .filter((record) => !(record.errors?.length > 0))
-    .map((record) => ({
-      filename: buildPdfFilename(record),
-      labelData: toPreviewRecord(record),
-    }));
+    .flatMap((record) => {
+      if (!Array.isArray(record.errors) || record.errors.length > 0) {
+        return [];
+      }
+
+      const labelData = toPreviewRecord(record);
+      const isPdfSafe = Object.values(labelData).every(isAsciiPdfValue);
+      if (!isPdfSafe) {
+        return [];
+      }
+
+      return [{
+        filename: buildPdfFilename(record),
+        labelData,
+      }];
+    });
 }
 
 export function selectAdjacentIndex(currentIndex, total, direction) {

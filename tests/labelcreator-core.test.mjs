@@ -142,4 +142,63 @@ test("buildExportJobs returns one PDF job per validated record", () => {
 
   assert.equal(jobs.length, 1);
   assert.equal(jobs[0].filename, "【标签】--中文名 1--NA--X001.pdf");
+  assert.deepEqual(jobs[0].labelData, {
+    manufactureSku: "MFG-1",
+    fnsku: "X001",
+    sku: "SKU-1",
+    itemName: "Item One",
+    storeName: "NA",
+    condition: "NEW",
+  });
+});
+
+test("buildExportJobs excludes rows with validation errors, raw rows without validation metadata, and PDF-unsafe label data", () => {
+  const jobs = buildExportJobs([
+    {
+      rowNumber: 1,
+      sku: "SKU-1",
+      fnsku: "X001",
+      manufactureSku: "MFG-1",
+      productChineseName: "中文名 1",
+      itemName: "Item One",
+      storeName: "NA",
+      condition: "NEW",
+      errors: [],
+    },
+    {
+      rowNumber: 2,
+      sku: "SKU-2",
+      fnsku: "",
+      manufactureSku: "MFG-2",
+      productChineseName: "中文名 2",
+      itemName: "Item Two",
+      storeName: "NA",
+      condition: "NEW",
+      errors: [{ field: "fnsku", message: "Row 2: FNSKU is required" }],
+    },
+    {
+      rowNumber: 3,
+      sku: "SKU-3",
+      fnsku: "X003",
+      manufactureSku: "MFG-3",
+      productChineseName: "中文名 3",
+      itemName: "咖啡凳",
+      storeName: "NA",
+      condition: "NEW",
+      errors: [],
+    },
+    {
+      rowNumber: 4,
+      sku: "SKU-4",
+      fnsku: "X004",
+      manufactureSku: "MFG-4",
+      productChineseName: "中文名 4",
+      itemName: "Item Four",
+      storeName: "NA",
+      condition: "NEW",
+    },
+  ]);
+
+  assert.equal(jobs.length, 1);
+  assert.equal(jobs[0].filename, "【标签】--中文名 1--NA--X001.pdf");
 });

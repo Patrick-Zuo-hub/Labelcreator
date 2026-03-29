@@ -74,8 +74,11 @@ function mountApp() {
   }
 
   function updateStatus(result, mode = "live") {
+    const exportJobs = buildExportJobs(result.records);
+    const blockedExportCount = result.records.length - exportJobs.length;
+
     if (state.isExporting) {
-      elements.status.textContent = `正在导出 ${buildExportJobs(result.records).length} 个 PDF 到 ZIP...`;
+      elements.status.textContent = `正在导出 ${exportJobs.length} 个 PDF 到 ZIP...`;
       return;
     }
 
@@ -94,17 +97,25 @@ function mountApp() {
       return;
     }
 
+    if (blockedExportCount > 0) {
+      elements.status.textContent = `${blockedExportCount} 条记录当前无法导出 PDF。PDF 导出仅支持 ASCII 标签字段（Manufacture SKU / FNSKU / SKU / Item Name / Store Name）。`;
+      return;
+    }
+
     elements.status.textContent = mode === "validated"
       ? `校验通过，共 ${result.records.length} 条记录。可以导出 ZIP。`
       : `已载入 ${result.records.length} 条记录。`;
   }
 
   function updateToolbar(result) {
-    const canExport = result.canExport && !state.isExporting;
+    const exportJobs = buildExportJobs(result.records);
+    const canExport = result.canExport && exportJobs.length === result.records.length && !state.isExporting;
     elements.exportZip.disabled = !canExport;
     elements.exportZip.title = canExport
       ? "下载包含每条有效记录 PDF 的 ZIP 文件"
-      : "";
+      : result.records.length && exportJobs.length !== result.records.length
+        ? "存在当前无法导出 PDF 的记录"
+        : "";
   }
 
   async function exportValidatedZip() {
@@ -252,7 +263,9 @@ function mountApp() {
   });
 
   elements.exportZip.addEventListener("click", async () => {
-    if (!state.validationResult.canExport) {
+    const exportJobs = buildExportJobs(state.validationResult.records);
+    if (!state.validationResult.canExport || exportJobs.length !== state.validationResult.records.length) {
+      updateStatus(state.validationResult, "validated");
       return;
     }
 
@@ -261,7 +274,7 @@ function mountApp() {
     updateStatus(state.validationResult);
 
     try {
-      const exportCount = buildExportJobs(state.validationResult.records).length;
+      const exportCount = exportJobs.length;
       await exportValidatedZip();
       elements.status.textContent = `已导出 amazon-labels.zip，包含 ${exportCount} 个 PDF。`;
     } catch (error) {
