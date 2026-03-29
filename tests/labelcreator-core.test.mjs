@@ -5,6 +5,7 @@ import {
   validateRecords,
   buildPdfFilename,
   selectAdjacentIndex,
+  toPreviewRecord,
 } from "../labelcreator-core.js";
 
 test("parseBatchText returns one normalized record for one pasted row", () => {
@@ -105,4 +106,20 @@ test("selectAdjacentIndex clamps previous and next navigation at the edges", () 
   assert.equal(selectAdjacentIndex(0, 3, -1), 0);
   assert.equal(selectAdjacentIndex(0, 3, 1), 1);
   assert.equal(selectAdjacentIndex(2, 3, 1), 2);
+});
+
+test("toPreviewRecord keeps 产品中文名称 out of the label but keeps Condition fixed", () => {
+  const preview = toPreviewRecord({
+    sku: "SKU-1",
+    fnsku: "X001",
+    manufactureSku: "MFG-1",
+    productChineseName: "中文名 1",
+    itemName: "Item One",
+    storeName: "NA",
+    condition: "NEW",
+  });
+
+  assert.equal(preview.condition, "NEW");
+  assert.equal(preview.storeName, "NA");
+  assert.equal("productChineseName" in preview, false);
 });

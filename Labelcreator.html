@@ -13,6 +13,7 @@
       --muted: #6b6257;
       --line: rgba(17, 17, 17, 0.14);
       --accent: #bf4a2b;
+      --accent-soft: rgba(191, 74, 43, 0.08);
       --shadow: 0 24px 60px rgba(59, 39, 15, 0.14);
       --label-width: 60mm;
       --label-height: 30mm;
@@ -108,44 +109,21 @@
       letter-spacing: -0.02em;
     }
 
-    .form-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 18px 16px;
-    }
-
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .field.wide {
-      grid-column: 1 / -1;
-    }
-
-    .field label {
-      font-size: 13px;
-      color: var(--muted);
-      font-weight: 600;
-    }
-
-    .field input,
-    .field select {
-      appearance: none;
+    .paste-input {
       width: 100%;
+      min-height: 180px;
+      resize: vertical;
       border: 1px solid rgba(17, 17, 17, 0.1);
-      border-radius: 14px;
-      padding: 14px 16px;
-      font-size: 16px;
+      border-radius: 18px;
+      padding: 16px 18px;
+      font: 500 14px/1.6 "SFMono-Regular", "Menlo", "Monaco", monospace;
       color: var(--ink);
       background: rgba(255, 255, 255, 0.9);
       outline: none;
       transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
     }
 
-    .field input:focus,
-    .field select:focus {
+    .paste-input:focus {
       border-color: rgba(191, 74, 43, 0.55);
       box-shadow: 0 0 0 4px rgba(191, 74, 43, 0.08);
       transform: translateY(-1px);
@@ -155,7 +133,7 @@
       display: flex;
       gap: 12px;
       flex-wrap: wrap;
-      margin-top: 22px;
+      margin-top: 18px;
     }
 
     button {
@@ -168,8 +146,15 @@
       transition: transform 0.14s ease, box-shadow 0.14s ease, opacity 0.14s ease;
     }
 
-    button:hover {
+    button:hover:not(:disabled) {
       transform: translateY(-1px);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+      transform: none;
+      box-shadow: none;
     }
 
     .primary {
@@ -186,6 +171,70 @@
     .ghost {
       color: var(--accent);
       background: rgba(191, 74, 43, 0.08);
+    }
+
+    .hint {
+      margin: 0 0 16px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .status {
+      margin-top: 12px;
+      min-height: 20px;
+      font-size: 13px;
+      color: var(--accent);
+    }
+
+    .table-shell {
+      margin-top: 16px;
+      overflow: auto;
+      border: 1px solid rgba(17, 17, 17, 0.08);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.7);
+    }
+
+    .records-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 720px;
+    }
+
+    .records-table th,
+    .records-table td {
+      padding: 12px 14px;
+      text-align: left;
+      font-size: 13px;
+      border-bottom: 1px solid rgba(17, 17, 17, 0.08);
+    }
+
+    .records-table th {
+      position: sticky;
+      top: 0;
+      background: rgba(247, 240, 228, 0.95);
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .records-table tbody tr {
+      cursor: pointer;
+      transition: background 0.14s ease;
+    }
+
+    .records-table tbody tr:hover,
+    .records-table tbody tr.selected {
+      background: rgba(191, 74, 43, 0.08);
+    }
+
+    .records-table tbody tr.has-errors {
+      background: rgba(191, 74, 43, 0.04);
+    }
+
+    .records-table tbody tr:last-child td {
+      border-bottom: 0;
     }
 
     .preview-panel {
@@ -294,20 +343,6 @@
       margin-left: auto;
     }
 
-    .hint {
-      margin-top: 16px;
-      font-size: 13px;
-      color: var(--muted);
-      line-height: 1.5;
-    }
-
-    .status {
-      margin-top: 10px;
-      min-height: 20px;
-      font-size: 13px;
-      color: var(--accent);
-    }
-
     @media (max-width: 1080px) {
       .layout {
         grid-template-columns: 1fr;
@@ -330,10 +365,6 @@
         padding-right: 18px;
       }
 
-      .form-grid {
-        grid-template-columns: 1fr;
-      }
-
       .label {
         transform: scale(1.28);
       }
@@ -341,47 +372,6 @@
       .preview-stage {
         min-height: 300px;
         padding: 16px;
-      }
-    }
-
-    @media print {
-      body {
-        padding: 0;
-        background: white;
-      }
-
-      .shell,
-      .preview-stage,
-      .label-frame {
-        box-shadow: none;
-        border: 0;
-        background: transparent;
-      }
-
-      .hero,
-      .form-panel,
-      .preview-meta,
-      .hint,
-      .status {
-        display: none !important;
-      }
-
-      .layout {
-        display: block;
-      }
-
-      .preview-panel {
-        padding: 0;
-      }
-
-      .label {
-        transform: none;
-        box-shadow: none;
-      }
-
-      @page {
-        size: 60mm 30mm;
-        margin: 0;
       }
     }
   </style>
@@ -392,80 +382,56 @@
       <div>
         <span class="tagline">Amazon FNSKU Label</span>
         <h1>Labelcreator</h1>
-        <p>单文件标签生成页，直接打开即可用。支持清晰条码、PNG 导出、PDF 导出和打印。</p>
+        <p>批量粘贴 Amazon 标签数据，在左侧校验与选择，在右侧持续预览单张标签。</p>
       </div>
     </header>
 
     <section class="layout">
       <section class="panel form-panel">
-        <h2 class="section-title">标签数据</h2>
-        <div class="form-grid">
-          <div class="field">
-            <label for="manufactureSku">Manufacture SKU</label>
-            <input id="manufactureSku" autocomplete="off" placeholder="例如: 25W027" />
-          </div>
-
-          <div class="field">
-            <label for="fnsku">FNSKU</label>
-            <input id="fnsku" autocomplete="off" placeholder="例如: X0050P4BTR" />
-          </div>
-
-          <div class="field">
-            <label for="sku">SKU</label>
-            <input id="sku" autocomplete="off" placeholder="例如: F-TSB-C3-TK-TW" />
-          </div>
-
-          <div class="field">
-            <label for="condition">Condition</label>
-            <select id="condition">
-              <option value="NEW">NEW</option>
-              <option value="USED LIKE NEW">USED LIKE NEW</option>
-              <option value="USED GOOD">USED GOOD</option>
-              <option value="USED ACCEPTABLE">USED ACCEPTABLE</option>
-              <option value="REFURBISHED">REFURBISHED</option>
-            </select>
-          </div>
-
-          <div class="field wide">
-            <label for="itemName">Item Name</label>
-            <input id="itemName" autocomplete="off" placeholder="例如: TeakAura Teak Shower Bench - 24 - C3" />
-          </div>
-
-          <div class="field wide">
-            <label for="storeName">Store Name</label>
-            <input id="storeName" autocomplete="off" placeholder="例如: NA" />
-          </div>
-        </div>
+        <h2 class="section-title">批量标签数据</h2>
+        <p class="hint">粘贴顺序：SKU | FNSKU | Manufacture SKU | 产品中文名称 | Item Name | Store Name</p>
+        <textarea id="pasteInput" class="paste-input" placeholder="直接粘贴 Excel 多行数据"></textarea>
 
         <div class="toolbar">
-          <button type="button" class="secondary" id="fillDemo">填充示例</button>
-          <button type="button" class="ghost" id="downloadPng">下载 PNG</button>
-          <button type="button" class="ghost" id="downloadPdf">下载 PDF</button>
-          <button type="button" class="primary" id="printLabel">打印</button>
+          <button type="button" class="secondary" id="clearData">清空数据</button>
+          <button type="button" class="ghost" id="validateData">校验数据</button>
+          <button type="button" class="primary" id="exportZip" disabled>导出 ZIP</button>
         </div>
 
-        <p class="hint">
-          标签尺寸固定为 6cm × 3cm，四周预留 1.5mm 安全边距。预览中只显示字段内容，不显示字段名。
-        </p>
         <div class="status" id="status"></div>
+        <div class="table-shell">
+          <table class="records-table">
+            <thead>
+              <tr>
+                <th>Row</th>
+                <th>SKU</th>
+                <th>FNSKU</th>
+                <th>Manufacture SKU</th>
+                <th>产品中文名称</th>
+                <th>Store Name</th>
+              </tr>
+            </thead>
+            <tbody id="recordsBody"></tbody>
+          </table>
+        </div>
       </section>
 
       <section class="panel preview-panel">
         <div class="preview-meta">
           <h2 class="section-title">标签预览</h2>
-          <p>导出结果无边框、无额外留白，字体为 Arial / Helvetica 常规字重。</p>
+          <p>预览始终显示当前选中记录，并固定展示 `Condition = NEW`。</p>
         </div>
 
         <div class="preview-stage">
           <div class="label-frame">
             <article class="label" id="labelRoot" aria-label="Amazon FNSKU 标签">
-              <div class="label-line center" id="vManufactureSku">25W027</div>
+              <div class="label-line center" id="vManufactureSku">等待数据</div>
               <div class="barcode-slot">
                 <svg class="barcode-svg" id="barcodePreview" viewBox="0 0 100 40" aria-label="FNSKU 条形码"></svg>
               </div>
-              <div class="label-line center" id="vFnsku">X0050P4BTR</div>
-              <div class="label-line" id="vItemName">TeakAura Teak Shower Bench - 24 - C3</div>
-              <div class="label-line" id="vSku">F-TSB-C3-TK-TW</div>
+              <div class="label-line center" id="vFnsku">FNSKU</div>
+              <div class="label-line" id="vItemName">Item Name</div>
+              <div class="label-line" id="vSku">SKU</div>
               <div class="bottom-row">
                 <div class="label-line" id="vCondition">NEW</div>
                 <div class="label-line" id="vStoreName">NA</div>
@@ -477,481 +443,10 @@
     </section>
   </main>
 
-  <script>
-    const LABEL_MM = {
-      width: 60,
-      height: 30,
-      margin: 1.5,
-      font: 2.8,
-      barcodeTop: 4.7,
-      barcodeHeight: 10.4,
-      fnskuTop: 15.7,
-      itemTop: 19.0,
-      skuTop: 22.1,
-      bottomTop: 25.1
-    };
+  <script type="module">
+    import { mountApp } from "./labelcreator-app.js";
 
-    const CODE128_PATTERNS = [
-      "212222", "222122", "222221", "121223", "121322", "131222", "122213", "122312", "132212",
-      "221213", "221312", "231212", "112232", "122132", "122231", "113222", "123122", "123221",
-      "223211", "221132", "221231", "213212", "223112", "312131", "311222", "321122", "321221",
-      "312212", "322112", "322211", "212123", "212321", "232121", "111323", "131123", "131321",
-      "112313", "132113", "132311", "211313", "231113", "231311", "112133", "112331", "132131",
-      "113123", "113321", "133121", "313121", "211331", "231131", "213113", "213311", "213131",
-      "311123", "311321", "331121", "312113", "312311", "332111", "314111", "221411", "431111",
-      "111224", "111422", "121124", "121421", "141122", "141221", "112214", "112412", "122114",
-      "122411", "142112", "142211", "241211", "221114", "413111", "241112", "134111", "111242",
-      "121142", "121241", "114212", "124112", "124211", "411212", "421112", "421211", "212141",
-      "214121", "412121", "111143", "111341", "131141", "114113", "114311", "411113", "411311",
-      "113141", "114131", "311141", "411131", "211412", "211214", "211232", "2331112"
-    ];
-
-    const measureCanvas = document.createElement("canvas");
-    const measureContext = measureCanvas.getContext("2d");
-
-    const fields = {
-      manufactureSku: document.getElementById("manufactureSku"),
-      fnsku: document.getElementById("fnsku"),
-      sku: document.getElementById("sku"),
-      itemName: document.getElementById("itemName"),
-      storeName: document.getElementById("storeName"),
-      condition: document.getElementById("condition")
-    };
-
-    const preview = {
-      manufactureSku: document.getElementById("vManufactureSku"),
-      fnsku: document.getElementById("vFnsku"),
-      sku: document.getElementById("vSku"),
-      itemName: document.getElementById("vItemName"),
-      storeName: document.getElementById("vStoreName"),
-      condition: document.getElementById("vCondition"),
-      barcode: document.getElementById("barcodePreview")
-    };
-
-    const statusEl = document.getElementById("status");
-
-    function clean(value) {
-      return (value || "").toString().trim();
-    }
-
-    function valueOrFallback(value, fallback) {
-      return clean(value) || fallback;
-    }
-
-    function setStatus(message) {
-      statusEl.textContent = message || "";
-    }
-
-    function escapeXml(value) {
-      return value
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&apos;");
-    }
-
-    function escapePdfText(value) {
-      return value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
-    }
-
-    function mmToPx(mm, pxPerMm) {
-      return mm * pxPerMm;
-    }
-
-    function mmToPt(mm) {
-      return mm * 72 / 25.4;
-    }
-
-    function collectData() {
-      return {
-        manufactureSku: valueOrFallback(fields.manufactureSku.value, "25W027"),
-        fnsku: valueOrFallback(fields.fnsku.value, "X0050P4BTR"),
-        sku: valueOrFallback(fields.sku.value, "F-TSB-C3-TK-TW"),
-        itemName: valueOrFallback(fields.itemName.value, "TeakAura Teak Shower Bench - 24 - C3"),
-        storeName: valueOrFallback(fields.storeName.value, "NA"),
-        condition: valueOrFallback(fields.condition.value, "NEW")
-      };
-    }
-
-    function fitFontPx(text, maxWidthPx, baseFontPx) {
-      let size = baseFontPx;
-      while (size > 12) {
-        measureContext.font = "400 " + size + "px Arial, Helvetica, sans-serif";
-        if (measureContext.measureText(text).width <= maxWidthPx) {
-          return size;
-        }
-        size -= 1;
-      }
-      return 12;
-    }
-
-    function encodeCode128B(text) {
-      const input = valueOrFallback(text, "FNSKU");
-      const codes = [104];
-      let checksum = 104;
-
-      for (let index = 0; index < input.length; index += 1) {
-        const codePoint = input.charCodeAt(index);
-        const codeValue = codePoint - 32;
-        if (codeValue < 0 || codeValue > 95) {
-          throw new Error("FNSKU contains unsupported characters. Use ASCII text only.");
-        }
-        codes.push(codeValue);
-        checksum += codeValue * (index + 1);
-      }
-
-      codes.push(checksum % 103, 106);
-
-      const bars = [];
-      let totalModules = 0;
-
-      for (const code of codes) {
-        const pattern = CODE128_PATTERNS[code];
-        for (let i = 0; i < pattern.length; i += 1) {
-          const width = Number(pattern[i]);
-          const isBar = i % 2 === 0;
-          bars.push({ isBar, width });
-          totalModules += width;
-        }
-      }
-
-      return { input, bars, totalModules };
-    }
-
-    function barcodeSvgMarkup(text) {
-      const barcode = encodeCode128B(text);
-      const height = 64;
-      let cursor = 0;
-      const rects = [];
-
-      for (const segment of barcode.bars) {
-        if (segment.isBar) {
-          rects.push(
-            '<rect x="' + cursor + '" y="0" width="' + segment.width + '" height="' + height + '" fill="#000"></rect>'
-          );
-        }
-        cursor += segment.width;
-      }
-
-      return {
-        viewBox: "0 0 " + barcode.totalModules + " " + height,
-        markup: rects.join("")
-      };
-    }
-
-    function updatePreview() {
-      const data = collectData();
-
-      preview.manufactureSku.textContent = data.manufactureSku;
-      preview.fnsku.textContent = data.fnsku;
-      preview.itemName.textContent = data.itemName;
-      preview.sku.textContent = data.sku;
-      preview.condition.textContent = data.condition;
-      preview.storeName.textContent = data.storeName;
-
-      try {
-        const svg = barcodeSvgMarkup(data.fnsku);
-        preview.barcode.setAttribute("viewBox", svg.viewBox);
-        preview.barcode.innerHTML = svg.markup;
-        setStatus("");
-      } catch (error) {
-        preview.barcode.setAttribute("viewBox", "0 0 100 64");
-        preview.barcode.innerHTML = "";
-        setStatus(error.message);
-      }
-    }
-
-    function drawBarcodeOnCanvas(context, text, xPx, yPx, maxWidthPx, heightPx) {
-      const barcode = encodeCode128B(text);
-      const modulePx = Math.max(1, Math.floor(maxWidthPx / barcode.totalModules));
-      const usedWidth = barcode.totalModules * modulePx;
-      let cursor = Math.floor(xPx + (maxWidthPx - usedWidth) / 2);
-
-      for (const segment of barcode.bars) {
-        const width = segment.width * modulePx;
-        if (segment.isBar) {
-          context.fillRect(cursor, yPx, width, heightPx);
-        }
-        cursor += width;
-      }
-    }
-
-    function drawTextLine(context, options) {
-      const {
-        text,
-        x,
-        y,
-        maxWidth,
-        baseFont,
-        align
-      } = options;
-
-      const fontSize = fitFontPx(text, maxWidth, baseFont);
-      context.font = "400 " + fontSize + "px Arial, Helvetica, sans-serif";
-      context.textAlign = align;
-      context.fillText(text, x, y);
-    }
-
-    function renderLabelCanvas(data, pxPerMm) {
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.round(LABEL_MM.width * pxPerMm);
-      canvas.height = Math.round(LABEL_MM.height * pxPerMm);
-      const context = canvas.getContext("2d");
-
-      context.imageSmoothingEnabled = false;
-      context.fillStyle = "#ffffff";
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      context.fillStyle = "#000000";
-      context.textBaseline = "top";
-
-      const margin = mmToPx(LABEL_MM.margin, pxPerMm);
-      const contentWidth = canvas.width - margin * 2;
-      const baseFont = Math.round(mmToPx(LABEL_MM.font, pxPerMm));
-
-      drawTextLine(context, {
-        text: data.manufactureSku,
-        x: canvas.width / 2,
-        y: mmToPx(LABEL_MM.margin, pxPerMm),
-        maxWidth: contentWidth,
-        baseFont,
-        align: "center"
-      });
-
-      drawBarcodeOnCanvas(
-        context,
-        data.fnsku,
-        margin,
-        mmToPx(LABEL_MM.barcodeTop, pxPerMm),
-        contentWidth,
-        Math.round(mmToPx(LABEL_MM.barcodeHeight, pxPerMm))
-      );
-
-      drawTextLine(context, {
-        text: data.fnsku,
-        x: canvas.width / 2,
-        y: mmToPx(LABEL_MM.fnskuTop, pxPerMm),
-        maxWidth: contentWidth,
-        baseFont,
-        align: "center"
-      });
-
-      drawTextLine(context, {
-        text: data.itemName,
-        x: margin,
-        y: mmToPx(LABEL_MM.itemTop, pxPerMm),
-        maxWidth: contentWidth,
-        baseFont,
-        align: "left"
-      });
-
-      drawTextLine(context, {
-        text: data.sku,
-        x: margin,
-        y: mmToPx(LABEL_MM.skuTop, pxPerMm),
-        maxWidth: contentWidth * 0.76,
-        baseFont,
-        align: "left"
-      });
-
-      drawTextLine(context, {
-        text: data.condition,
-        x: margin,
-        y: mmToPx(LABEL_MM.bottomTop, pxPerMm),
-        maxWidth: contentWidth * 0.42,
-        baseFont,
-        align: "left"
-      });
-
-      drawTextLine(context, {
-        text: data.storeName,
-        x: canvas.width - margin,
-        y: mmToPx(LABEL_MM.bottomTop, pxPerMm),
-        maxWidth: contentWidth * 0.26,
-        baseFont,
-        align: "right"
-      });
-
-      return canvas;
-    }
-
-    function pdfTextWidthPt(text, fontPx) {
-      measureContext.font = "400 " + fontPx + "px Arial, Helvetica, sans-serif";
-      return measureContext.measureText(text).width * 72 / 96;
-    }
-
-    function fitFontPt(text, maxWidthMm, baseFontMm) {
-      const maxWidthPx = maxWidthMm * 96 / 25.4;
-      const baseFontPx = baseFontMm * 96 / 25.4;
-      return fitFontPx(text, maxWidthPx, baseFontPx) * 72 / 96;
-    }
-
-    function ensurePdfAscii(data) {
-      const values = [
-        data.manufactureSku,
-        data.fnsku,
-        data.sku,
-        data.itemName,
-        data.storeName,
-        data.condition
-      ];
-
-      for (const value of values) {
-        if (/[^\x20-\x7E]/.test(value)) {
-          throw new Error("PDF export currently supports ASCII text only. Use PNG or print for non-ASCII content.");
-        }
-      }
-    }
-
-    function buildPdf(labelData) {
-      ensurePdfAscii(labelData);
-
-      const pageWidthPt = mmToPt(LABEL_MM.width);
-      const pageHeightPt = mmToPt(LABEL_MM.height);
-      const marginPt = mmToPt(LABEL_MM.margin);
-      const contentWidthPt = pageWidthPt - marginPt * 2;
-      const baseFontPt = mmToPt(LABEL_MM.font);
-      const ascentFactor = 0.78;
-
-      const barcode = encodeCode128B(labelData.fnsku);
-      const modulePt = contentWidthPt / barcode.totalModules;
-      let barcodeCursor = marginPt;
-      const barTopPt = pageHeightPt - mmToPt(LABEL_MM.barcodeTop + LABEL_MM.barcodeHeight);
-      const barHeightPt = mmToPt(LABEL_MM.barcodeHeight);
-
-      const ops = ["0 g"];
-
-      function topMmToBaselinePt(topMm, fontPt) {
-        return pageHeightPt - mmToPt(topMm) - (fontPt * ascentFactor);
-      }
-
-      function pushText(text, topMm, align, maxWidthMm) {
-        const fontPt = fitFontPt(text, maxWidthMm, LABEL_MM.font);
-        const textWidthPt = pdfTextWidthPt(text, fontPt * 96 / 72);
-        let xPt = marginPt;
-        if (align === "center") {
-          xPt = (pageWidthPt - textWidthPt) / 2;
-        } else if (align === "right") {
-          xPt = pageWidthPt - marginPt - textWidthPt;
-        }
-
-        ops.push(
-          "BT /F1 " + fontPt.toFixed(2) + " Tf 1 0 0 1 " +
-          xPt.toFixed(2) + " " + topMmToBaselinePt(topMm, fontPt).toFixed(2) +
-          " Tm (" + escapePdfText(text) + ") Tj ET"
-        );
-      }
-
-      for (const segment of barcode.bars) {
-        const widthPt = segment.width * modulePt;
-        if (segment.isBar) {
-          ops.push(
-            barcodeCursor.toFixed(3) + " " +
-            barTopPt.toFixed(3) + " " +
-            widthPt.toFixed(3) + " " +
-            barHeightPt.toFixed(3) + " re f"
-          );
-        }
-        barcodeCursor += widthPt;
-      }
-
-      pushText(labelData.manufactureSku, LABEL_MM.margin, "center", LABEL_MM.width - LABEL_MM.margin * 2);
-      pushText(labelData.fnsku, LABEL_MM.fnskuTop, "center", LABEL_MM.width - LABEL_MM.margin * 2);
-      pushText(labelData.itemName, LABEL_MM.itemTop, "left", LABEL_MM.width - LABEL_MM.margin * 2);
-      pushText(labelData.sku, LABEL_MM.skuTop, "left", (LABEL_MM.width - LABEL_MM.margin * 2) * 0.76);
-      pushText(labelData.condition, LABEL_MM.bottomTop, "left", (LABEL_MM.width - LABEL_MM.margin * 2) * 0.42);
-      pushText(labelData.storeName, LABEL_MM.bottomTop, "right", (LABEL_MM.width - LABEL_MM.margin * 2) * 0.26);
-
-      const stream = ops.join("\n");
-
-      const objects = [
-        "<< /Type /Catalog /Pages 2 0 R >>",
-        "<< /Type /Pages /Count 1 /Kids [3 0 R] >>",
-        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + pageWidthPt.toFixed(2) + " " + pageHeightPt.toFixed(2) + "] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
-        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-        "<< /Length " + stream.length + " >>\nstream\n" + stream + "\nendstream"
-      ];
-
-      let pdf = "%PDF-1.4\n";
-      const offsets = [0];
-
-      for (let i = 0; i < objects.length; i += 1) {
-        offsets.push(pdf.length);
-        pdf += (i + 1) + " 0 obj\n" + objects[i] + "\nendobj\n";
-      }
-
-      const xrefStart = pdf.length;
-      pdf += "xref\n0 " + (objects.length + 1) + "\n";
-      pdf += "0000000000 65535 f \n";
-      for (let i = 1; i < offsets.length; i += 1) {
-        pdf += String(offsets[i]).padStart(10, "0") + " 00000 n \n";
-      }
-      pdf += "trailer\n<< /Size " + (objects.length + 1) + " /Root 1 0 R >>\n";
-      pdf += "startxref\n" + xrefStart + "\n%%EOF";
-
-      return new Blob([pdf], { type: "application/pdf" });
-    }
-
-    function triggerDownload(blob, filename) {
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = filename;
-      anchor.click();
-      setTimeout(function() {
-        URL.revokeObjectURL(url);
-      }, 1000);
-    }
-
-    function downloadPng() {
-      try {
-        const canvas = renderLabelCanvas(collectData(), 24);
-        canvas.toBlob(function(blob) {
-          if (!blob) {
-            setStatus("PNG export failed.");
-            return;
-          }
-          triggerDownload(blob, "Labelcreator-" + collectData().fnsku + ".png");
-          setStatus("PNG 已生成。");
-        }, "image/png");
-      } catch (error) {
-        setStatus(error.message);
-      }
-    }
-
-    function downloadPdf() {
-      try {
-        const blob = buildPdf(collectData());
-        triggerDownload(blob, "Labelcreator-" + collectData().fnsku + ".pdf");
-        setStatus("PDF 已生成。");
-      } catch (error) {
-        setStatus(error.message);
-      }
-    }
-
-    function fillDemo() {
-      fields.manufactureSku.value = "25W027";
-      fields.fnsku.value = "X0050P4BTR";
-      fields.sku.value = "F-TSB-C3-TK-TW";
-      fields.itemName.value = "TeakAura Teak Shower Bench - 24 - C3";
-      fields.storeName.value = "NA";
-      fields.condition.value = "NEW";
-      updatePreview();
-    }
-
-    Object.values(fields).forEach(function(field) {
-      field.addEventListener("input", updatePreview);
-      field.addEventListener("change", updatePreview);
-    });
-
-    document.getElementById("fillDemo").addEventListener("click", fillDemo);
-    document.getElementById("downloadPng").addEventListener("click", downloadPng);
-    document.getElementById("downloadPdf").addEventListener("click", downloadPdf);
-    document.getElementById("printLabel").addEventListener("click", function() {
-      window.print();
-    });
-
-    fillDemo();
+    mountApp();
   </script>
 </body>
 </html>

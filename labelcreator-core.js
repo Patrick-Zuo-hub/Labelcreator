@@ -94,3 +94,14 @@ export function selectAdjacentIndex(currentIndex, total, direction) {
 
   return Math.max(0, Math.min(total - 1, currentIndex + direction));
 }
+
+export function toPreviewRecord(record) {
+  return {
+    manufactureSku: record.manufactureSku,
+    fnsku: record.fnsku,
+    sku: record.sku,
+    itemName: record.itemName,
+    storeName: record.storeName,
+    condition: "NEW",
+  };
+}
