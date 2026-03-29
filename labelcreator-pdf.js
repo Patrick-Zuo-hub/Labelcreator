@@ -64,13 +64,13 @@ function measureTextPx(text, fontPx) {
 
 function fitFontPx(text, maxWidthPx, baseFontPx) {
   let size = baseFontPx;
-  while (size > 12) {
+  while (size > 1) {
     if (measureTextPx(text, size) <= maxWidthPx) {
       return size;
     }
     size -= 1;
   }
-  return 12;
+  return 1;
 }
 
 function pdfTextWidthPt(text, fontPx) {
