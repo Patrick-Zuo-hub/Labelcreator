@@ -27,3 +27,16 @@ test("parseBatchText trims fields, skips whitespace-only lines, and defaults sto
   assert.equal(rows[0].storeName, "NA");
   assert.equal(rows[0].condition, "NEW");
 });
+
+test("parseBatchText preserves empty leading columns without shifting later fields", () => {
+  const rows = parseBatchText("\tX003\tMFG-3\t\tItem Name 3\tNA");
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].sku, "");
+  assert.equal(rows[0].fnsku, "X003");
+  assert.equal(rows[0].manufactureSku, "MFG-3");
+  assert.equal(rows[0].productChineseName, "");
+  assert.equal(rows[0].itemName, "Item Name 3");
+  assert.equal(rows[0].storeName, "NA");
+  assert.equal(rows[0].condition, "NEW");
+});
