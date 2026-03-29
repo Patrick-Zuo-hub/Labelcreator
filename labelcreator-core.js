@@ -1,5 +1,9 @@
 export function parseBatchText(text) {
-  const lines = String(text || "").trim().split(/\r?\n/).filter(Boolean);
+  const lines = String(text || "")
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
   return lines.map((line) => {
     const [
       sku = "",
