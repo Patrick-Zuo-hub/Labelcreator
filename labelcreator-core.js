@@ -7,6 +7,14 @@ const REQUIRED_FIELDS = [
   ["productChineseName", "产品中文名称"],
   ["itemName", "Item Name"],
 ];
+const GRID_COLUMNS = [
+  "sku",
+  "fnsku",
+  "manufactureSku",
+  "productChineseName",
+  "itemName",
+  "storeName",
+];
 
 function cleanCell(value) {
   return String(value ?? "").trim();
@@ -14,6 +22,38 @@ function cleanCell(value) {
 
 function isAsciiPdfValue(value) {
   return !/[^\x20-\x7E]/.test(String(value ?? ""));
+}
+
+export function createEmptyGridRows(count = 10) {
+  return Array.from({ length: count }, (_, index) => ({
+    rowNumber: index + 1,
+    sku: "",
+    fnsku: "",
+    manufactureSku: "",
+    productChineseName: "",
+    itemName: "",
+    storeName: "",
+  }));
+}
+
+function hasMeaningfulGridValue(row) {
+  return GRID_COLUMNS.some((key) => String(row[key] ?? "").trim() !== "");
+}
+
+export function normalizeGridRowsForValidation(rows) {
+  return rows
+    .filter(hasMeaningfulGridValue)
+    .map((row) => ({
+      rowNumber: row.rowNumber,
+      sku: cleanCell(row.sku),
+      fnsku: cleanCell(row.fnsku),
+      manufactureSku: cleanCell(row.manufactureSku),
+      productChineseName: cleanCell(row.productChineseName),
+      itemName: cleanCell(row.itemName),
+      storeName: cleanCell(row.storeName) || "NA",
+      condition: "NEW",
+      rawColumns: GRID_COLUMNS.map((key) => cleanCell(row[key])),
+    }));
 }
 
 export function parseBatchText(text) {

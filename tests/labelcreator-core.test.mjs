@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  createEmptyGridRows,
+  normalizeGridRowsForValidation,
   parseBatchText,
   validateRecords,
   buildPdfFilename,
@@ -161,6 +163,34 @@ test("parseBatchText preserves rows with missing columns for later validation", 
 
   assert.equal(rows[0].rawColumns.length, 4);
   assert.equal(rows[0].itemName, "");
+});
+
+test("createEmptyGridRows returns 10 blank editable rows", () => {
+  const rows = createEmptyGridRows();
+
+  assert.equal(rows.length, 10);
+  assert.deepEqual(Object.keys(rows[0]), [
+    "rowNumber",
+    "sku",
+    "fnsku",
+    "manufactureSku",
+    "productChineseName",
+    "itemName",
+    "storeName",
+  ]);
+  assert.equal(rows[0].storeName, "");
+});
+
+test("normalizeGridRowsForValidation keeps only rows with meaningful input", () => {
+  const rows = normalizeGridRowsForValidation([
+    { rowNumber: 1, sku: "", fnsku: "", manufactureSku: "", productChineseName: "", itemName: "", storeName: "" },
+    { rowNumber: 2, sku: "SKU-1", fnsku: "X001", manufactureSku: "MFG-1", productChineseName: "中文名", itemName: "Item", storeName: "" },
+  ]);
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].rowNumber, 2);
+  assert.equal(rows[0].storeName, "NA");
+  assert.equal(rows[0].condition, "NEW");
 });
 
 test("validateRecords blocks rows with missing required fields and invalid store values", () => {
