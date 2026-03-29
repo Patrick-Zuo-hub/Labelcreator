@@ -87,6 +87,15 @@ export function buildPdfFilename(record) {
   return `【标签】--${safe(record.productChineseName)}--${safe(record.storeName)}--${safe(record.fnsku)}.pdf`;
 }
 
+export function buildExportJobs(records) {
+  return records
+    .filter((record) => !(record.errors?.length > 0))
+    .map((record) => ({
+      filename: buildPdfFilename(record),
+      labelData: toPreviewRecord(record),
+    }));
+}
+
 export function selectAdjacentIndex(currentIndex, total, direction) {
   if (total <= 0) {
     return 0;

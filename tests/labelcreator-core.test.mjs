@@ -4,6 +4,7 @@ import {
   parseBatchText,
   validateRecords,
   buildPdfFilename,
+  buildExportJobs,
   selectAdjacentIndex,
   toPreviewRecord,
 } from "../labelcreator-core.js";
@@ -122,4 +123,23 @@ test("toPreviewRecord keeps 产品中文名称 out of the label but keeps Condit
   assert.equal(preview.condition, "NEW");
   assert.equal(preview.storeName, "NA");
   assert.equal("productChineseName" in preview, false);
+});
+
+test("buildExportJobs returns one PDF job per validated record", () => {
+  const jobs = buildExportJobs([
+    {
+      rowNumber: 1,
+      sku: "SKU-1",
+      fnsku: "X001",
+      manufactureSku: "MFG-1",
+      productChineseName: "中文名 1",
+      itemName: "Item One",
+      storeName: "NA",
+      condition: "NEW",
+      errors: [],
+    },
+  ]);
+
+  assert.equal(jobs.length, 1);
+  assert.equal(jobs[0].filename, "【标签】--中文名 1--NA--X001.pdf");
 });

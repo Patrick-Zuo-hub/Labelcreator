@@ -1,10 +1,11 @@
 import {
   parseBatchText,
   validateRecords,
+  buildExportJobs,
   selectAdjacentIndex,
   toPreviewRecord,
 } from "./labelcreator-core.js";
-import { barcodeSvgMarkup } from "./labelcreator-pdf.js";
+import { barcodeSvgMarkup, buildPdf } from "./labelcreator-pdf.js";
 
 const EMPTY_PREVIEW = {
   manufactureSku: "等待数据",
@@ -18,6 +19,7 @@ const EMPTY_PREVIEW = {
 const state = {
   records: [],
   selectedIndex: 0,
+  isExporting: false,
   previewError: null,
   validationResult: {
     records: [],
@@ -72,6 +74,11 @@ function mountApp() {
   }
 
   function updateStatus(result, mode = "live") {
+    if (state.isExporting) {
+      elements.status.textContent = `正在导出 ${buildExportJobs(result.records).length} 个 PDF 到 ZIP...`;
+      return;
+    }
+
     if (!result.records.length) {
       elements.status.textContent = "等待粘贴批量数据。";
       return;
@@ -88,15 +95,43 @@ function mountApp() {
     }
 
     elements.status.textContent = mode === "validated"
-      ? `校验通过，共 ${result.records.length} 条记录。ZIP 导出将在后续任务中接入。`
+      ? `校验通过，共 ${result.records.length} 条记录。可以导出 ZIP。`
       : `已载入 ${result.records.length} 条记录。`;
   }
 
   function updateToolbar(result) {
-    elements.exportZip.disabled = true;
-    elements.exportZip.title = result.records.length
-      ? "ZIP 导出将在后续任务中接入。"
+    const canExport = result.canExport && !state.isExporting;
+    elements.exportZip.disabled = !canExport;
+    elements.exportZip.title = canExport
+      ? "下载包含每条有效记录 PDF 的 ZIP 文件"
       : "";
+  }
+
+  async function exportValidatedZip() {
+    const JSZipCtor = window.JSZip;
+    if (!JSZipCtor) {
+      throw new Error("JSZip 未加载，无法导出 ZIP。");
+    }
+
+    const jobs = buildExportJobs(state.validationResult.records);
+    if (!jobs.length) {
+      return;
+    }
+
+    const zip = new JSZipCtor();
+    for (const job of jobs) {
+      zip.file(job.filename, buildPdf(job.labelData));
+    }
+
+    const zipBlob = await zip.generateAsync({ type: "blob" });
+    const downloadUrl = URL.createObjectURL(zipBlob);
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = "amazon-labels.zip";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(downloadUrl);
   }
 
   function renderTable(records) {
@@ -187,6 +222,7 @@ function mountApp() {
   elements.clearData.addEventListener("click", () => {
     elements.pasteInput.value = "";
     state.records = [];
+    state.isExporting = false;
     state.previewError = null;
     state.validationResult = { records: [], errors: [], canExport: false };
     state.selectedIndex = 0;
@@ -215,12 +251,25 @@ function mountApp() {
     updateToolbar(result);
   });
 
-  elements.exportZip.addEventListener("click", () => {
+  elements.exportZip.addEventListener("click", async () => {
     if (!state.validationResult.canExport) {
       return;
     }
 
-    elements.status.textContent = "ZIP 导出将在后续任务中接入。";
+    state.isExporting = true;
+    updateToolbar(state.validationResult);
+    updateStatus(state.validationResult);
+
+    try {
+      const exportCount = buildExportJobs(state.validationResult.records).length;
+      await exportValidatedZip();
+      elements.status.textContent = `已导出 amazon-labels.zip，包含 ${exportCount} 个 PDF。`;
+    } catch (error) {
+      elements.status.textContent = `ZIP 导出失败：${error.message}`;
+    } finally {
+      state.isExporting = false;
+      updateToolbar(state.validationResult);
+    }
   });
 
   renderPreview(null);
