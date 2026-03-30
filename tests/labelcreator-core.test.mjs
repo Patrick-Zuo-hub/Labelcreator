@@ -537,6 +537,38 @@ test("mountApp clears the ignored-extra-column notice after a normal grid edit",
   }
 });
 
+test("mountApp starts a fresh remount without a stale ignored-extra-column notice", () => {
+  const firstMount = setupMockAppDom();
+
+  try {
+    assert.equal(mountApp(), true);
+
+    pasteIntoGridCell(
+      firstMount.elements,
+      0,
+      0,
+      "SKU-1\tX001\tMFG-1\t中文名 1\tItem One\tNA\tEXTRA",
+    );
+
+    assert.match(firstMount.elements.get("validationSummary").textContent, /多余列已忽略/);
+  } finally {
+    firstMount.restore();
+  }
+
+  const secondMount = setupMockAppDom();
+
+  try {
+    assert.equal(mountApp(), true);
+
+    const validationSummary = secondMount.elements.get("validationSummary");
+
+    assert.doesNotMatch(validationSummary.textContent, /多余列已忽略/);
+    assert.equal(validationSummary.hidden, true);
+  } finally {
+    secondMount.restore();
+  }
+});
+
 test("buildPdfFilename uses the agreed naming rule and replaces unsafe characters", () => {
   const filename = buildPdfFilename({
     productChineseName: "浴室凳/24",

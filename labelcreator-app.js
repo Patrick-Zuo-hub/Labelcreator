@@ -159,6 +159,7 @@ function mountApp() {
   state.previewError = null;
   state.statusMode = "live";
   state.validatedRecordKey = null;
+  state.gridNotice = "";
   state.validationResult = {
     records: [],
     errors: [],
