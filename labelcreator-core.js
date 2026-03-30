@@ -36,6 +36,32 @@ export function createEmptyGridRows(count = 10) {
   }));
 }
 
+export function applyGridPaste(rows, startCell, clipboardText) {
+  const nextRows = rows.map((row) => ({ ...row }));
+  const lines = String(clipboardText || "").split(/\r?\n/).filter((line) => line.length > 0);
+  let ignoredExtraColumns = false;
+  const startColumnIndex = Math.max(0, (startCell?.col ?? 0) - 1);
+
+  lines.forEach((line, rowOffset) => {
+    const targetRow = startCell.row + rowOffset;
+    if (!nextRows[targetRow]) return;
+
+    const values = line.split("\t");
+    values.slice(0, GRID_COLUMNS.length - startColumnIndex).forEach((value, colOffset) => {
+      nextRows[targetRow][GRID_COLUMNS[startColumnIndex + colOffset]] = cleanCell(value);
+    });
+
+    if (values.length > GRID_COLUMNS.length - startColumnIndex) {
+      ignoredExtraColumns = true;
+    }
+  });
+
+  return {
+    rows: nextRows,
+    notice: ignoredExtraColumns ? "检测到多余列已忽略，已自动忽略第 7 列及之后的数据。" : "",
+  };
+}
+
 function hasMeaningfulGridValue(row) {
   return GRID_COLUMNS.some((key) => String(row[key] ?? "").trim() !== "");
 }
@@ -54,6 +80,22 @@ export function normalizeGridRowsForValidation(rows) {
       condition: "NEW",
       rawColumns: GRID_COLUMNS.map((key) => cleanCell(row[key])),
     }));
+}
+
+export function mapCellErrors(errors) {
+  const byRow = new Map();
+
+  errors.forEach((error) => {
+    if (!byRow.has(error.rowNumber)) {
+      byRow.set(error.rowNumber, {});
+    }
+
+    const row = byRow.get(error.rowNumber);
+    row[error.field] = row[error.field] || [];
+    row[error.field].push(error.message);
+  });
+
+  return byRow;
 }
 
 export function parseBatchText(text) {

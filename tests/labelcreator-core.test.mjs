@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   createEmptyGridRows,
+  applyGridPaste,
+  mapCellErrors,
   normalizeGridRowsForValidation,
   parseBatchText,
   validateRecords,
@@ -179,6 +181,35 @@ test("createEmptyGridRows returns 10 blank editable rows", () => {
     "storeName",
   ]);
   assert.equal(rows[0].storeName, "");
+});
+
+test("applyGridPaste fills from the selected cell and pads missing cells", () => {
+  const baseRows = createEmptyGridRows(3);
+  const result = applyGridPaste(baseRows, { row: 1, col: 2 }, "X001\tMFG-1\t中文名\tItem One\nX002\tMFG-2");
+
+  assert.equal(result.rows[1].fnsku, "X001");
+  assert.equal(result.rows[1].manufactureSku, "MFG-1");
+  assert.equal(result.rows[1].productChineseName, "中文名");
+  assert.equal(result.rows[2].fnsku, "X002");
+  assert.equal(result.rows[2].itemName, "");
+});
+
+test("applyGridPaste ignores extra columns and reports a notice", () => {
+  const baseRows = createEmptyGridRows(1);
+  const result = applyGridPaste(baseRows, { row: 0, col: 0 }, "SKU-1\tX001\tMFG-1\t中文名\tItem\tNA\tEXTRA");
+
+  assert.equal(result.rows[0].storeName, "NA");
+  assert.match(result.notice, /多余列已忽略/);
+});
+
+test("mapCellErrors groups validation errors by row and field", () => {
+  const mapped = mapCellErrors([
+    { rowNumber: 2, field: "fnsku", message: "Row 2: FNSKU is required" },
+    { rowNumber: 2, field: "storeName", message: "Row 2: Store Name must be one of NA, EU, AU, Walmart-US" },
+  ]);
+
+  assert.equal(mapped.get(2).fnsku.length, 1);
+  assert.equal(mapped.get(2).storeName.length, 1);
 });
 
 test("normalizeGridRowsForValidation keeps only rows with meaningful input", () => {
