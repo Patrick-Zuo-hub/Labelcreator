@@ -116,6 +116,7 @@ function setupMockAppDom() {
     "vCondition",
     "barcodePreview",
     "batchGridHint",
+    "validationSummary",
     "batchGridBody",
   ];
 
@@ -409,6 +410,32 @@ test("mountApp renders 10 editable grid rows by default with the fixed column hi
       gridHint.textContent,
       /SKU \| FNSKU \| Manufacture SKU \| 产品中文名称 \| Item Name \| Store Name/,
     );
+  } finally {
+    restore();
+  }
+});
+
+test("mountApp shows a validation summary and cell-level errors after invalid input", () => {
+  const { elements, restore } = setupMockAppDom();
+
+  try {
+    assert.equal(mountApp(), true);
+
+    const validationSummary = elements.get("validationSummary");
+    const recordInspector = elements.get("recordInspector");
+
+    fillGridRow(elements, 0, ["SKU-1", "", "MFG-1", "中文名 1", "Item One", "BAD"]);
+
+    assert.match(
+      validationSummary.textContent,
+      /错误|修正后才能导出/,
+    );
+
+    const fnskuCell = elements.get("batchGridBody").children[0].children[1];
+    const fnskuInput = fnskuCell.children[0];
+    assert.equal(fnskuCell.classList.contains("has-cell-error"), true);
+    assert.match(fnskuInput.title, /FNSKU/);
+    assert.match(recordInspector.textContent, /FNSKU/);
   } finally {
     restore();
   }

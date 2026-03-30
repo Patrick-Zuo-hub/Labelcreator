@@ -1,6 +1,7 @@
 import {
   createEmptyGridRows,
   applyGridPaste,
+  mapCellErrors,
   normalizeGridRowsForValidation,
   validateRecords,
   buildExportJobs,
@@ -47,6 +48,8 @@ const state = {
   previewError: null,
   statusMode: "live",
   validatedRecordKey: null,
+  gridNotice: "",
+  cellErrors: new Map(),
   validationResult: {
     records: [],
     errors: [],
@@ -101,6 +104,20 @@ function summarizeRecordErrors(record) {
     shortText: `${details.length} 处错误`,
     fullText: details.join("\n"),
   };
+}
+
+function summarizeValidationBanner(result, notice = "") {
+  const messages = [];
+
+  if (result.errors.length > 0) {
+    messages.push(`发现 ${result.errors.length} 处校验错误，修正后才能导出 ZIP。`);
+  }
+
+  if (notice) {
+    messages.push(notice);
+  }
+
+  return messages.join("\n");
 }
 
 export function getStatusMessage(result, uiState = {}, mode = "live") {
@@ -160,6 +177,7 @@ function mountApp() {
     nextRecord: document.getElementById("nextRecord"),
     previewPosition: document.getElementById("previewPosition"),
     recordInspector: document.getElementById("recordInspector"),
+    validationSummary: document.getElementById("validationSummary"),
     preview: {
       manufactureSku: document.getElementById("vManufactureSku"),
       fnsku: document.getElementById("vFnsku"),
@@ -208,6 +226,18 @@ function mountApp() {
     }
 
     elements.recordInspector.textContent = summarizeRecordErrors(record).fullText;
+  }
+
+  function updateValidationSummary(result) {
+    if (!elements.validationSummary) {
+      return;
+    }
+
+    const summaryText = summarizeValidationBanner(result, state.gridNotice);
+    elements.validationSummary.textContent = summaryText;
+    elements.validationSummary.hidden = !summaryText;
+    elements.validationSummary.classList.toggle("has-errors", result.errors.length > 0);
+    elements.validationSummary.classList.toggle("has-notice", !result.errors.length && Boolean(state.gridNotice));
   }
 
   function updatePreviewNavigation() {
@@ -287,17 +317,43 @@ function mountApp() {
     });
   }
 
+  function refreshGridValidationState() {
+    state.gridRows.forEach((rowElement, rowIndex) => {
+      const rowNumber = rowIndex + 1;
+      const rowErrors = state.cellErrors.get(rowNumber) || {};
+
+      Array.from(rowElement.children).forEach((cell, fieldIndex) => {
+        const field = GRID_FIELD_ORDER[fieldIndex];
+        const input = cell.children[0];
+        const fieldErrors = rowErrors[field] || [];
+        const hasError = fieldErrors.length > 0;
+        const title = hasError ? fieldErrors.join("；") : FIELD_LABELS[field];
+
+        cell.classList.toggle("has-cell-error", hasError);
+        input.classList.toggle("has-cell-error", hasError);
+        input.setAttribute("aria-invalid", hasError ? "true" : "false");
+        input.title = title;
+        cell.title = title;
+      });
+
+      rowElement.classList.toggle("has-row-error", Object.keys(rowErrors).length > 0);
+    });
+  }
+
   function recomputeValidation() {
     const result = validateRecords(normalizeGridRowsForValidation(state.rows));
 
     state.records = result.records;
+    state.cellErrors = mapCellErrors(result.errors);
     state.validationResult = result;
 
     return result;
   }
 
   function refreshFromValidation(mode = state.statusMode) {
+    refreshGridValidationState();
     renderSelectedRowDetails();
+    updateValidationSummary(state.validationResult);
     updatePreviewNavigation();
     updateStatus(state.validationResult, mode);
     updateToolbar(state.validationResult);
@@ -381,6 +437,7 @@ function mountApp() {
           event.preventDefault?.();
           const result = applyGridPaste(state.rows, { row: rowIndex, col: fieldIndex + 1 }, clipboardText);
           state.rows = result.rows;
+          state.gridNotice = result.notice || "";
           renderGrid();
           syncFromGrid();
         });
@@ -408,6 +465,8 @@ function mountApp() {
     state.previewError = null;
     state.statusMode = "live";
     state.validatedRecordKey = null;
+    state.gridNotice = "";
+    state.cellErrors = new Map();
     state.validationResult = { records: [], errors: [], canExport: false };
     state.selectedIndex = 0;
 

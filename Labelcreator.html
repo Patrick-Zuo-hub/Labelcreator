@@ -258,8 +258,20 @@
       box-shadow: 0 8px 22px rgba(59, 39, 15, 0.08);
     }
 
+    .batch-grid-row.has-row-error {
+      border-color: rgba(185, 55, 28, 0.28);
+      background: rgba(191, 74, 43, 0.06);
+    }
+
     .batch-grid-cell {
       min-width: 0;
+    }
+
+    .batch-grid-cell.has-cell-error .batch-grid-input,
+    .batch-grid-input.has-cell-error {
+      border-color: rgba(185, 55, 28, 0.7);
+      background: rgba(191, 74, 43, 0.08);
+      box-shadow: 0 0 0 4px rgba(191, 74, 43, 0.08);
     }
 
     .batch-grid-input {
@@ -290,6 +302,32 @@
       min-height: 20px;
       font-size: 13px;
       color: var(--accent);
+    }
+
+    .validation-summary {
+      margin: 14px 0 0;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid transparent;
+      font-size: 13px;
+      line-height: 1.5;
+      white-space: pre-line;
+    }
+
+    .validation-summary[hidden] {
+      display: none;
+    }
+
+    .validation-summary.has-errors {
+      color: #9d2d15;
+      border-color: rgba(185, 55, 28, 0.22);
+      background: rgba(191, 74, 43, 0.08);
+    }
+
+    .validation-summary.has-notice {
+      color: var(--muted);
+      border-color: rgba(17, 17, 17, 0.08);
+      background: rgba(17, 17, 17, 0.04);
     }
 
     .table-shell {
@@ -545,6 +583,7 @@
             <span class="grid-shell-chip">10 blank rows</span>
           </div>
           <p class="grid-shell-note" id="batchGridHint">SKU | FNSKU | Manufacture SKU | 产品中文名称 | Item Name | Store Name</p>
+          <div class="validation-summary" id="validationSummary" aria-live="polite" hidden></div>
           <div class="batch-grid-scroll">
             <div class="batch-grid-head" aria-hidden="true">
               <div>SKU</div>
