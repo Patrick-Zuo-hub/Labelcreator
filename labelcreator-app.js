@@ -426,6 +426,7 @@ function mountApp() {
         });
         input.addEventListener("input", () => {
           state.rows[rowIndex][field] = input.value;
+          state.gridNotice = "";
           syncFromGrid();
         });
         input.addEventListener("paste", (event) => {

@@ -159,6 +159,18 @@ function fillGridRow(elements, rowIndex, values) {
   });
 }
 
+function pasteIntoGridCell(elements, rowIndex, fieldIndex, clipboardText) {
+  const input = getGridInput(elements, rowIndex, fieldIndex);
+  input.listeners.paste({
+    clipboardData: {
+      getData(type) {
+        return type === "text" ? clipboardText : "";
+      },
+    },
+    preventDefault() {},
+  });
+}
+
 function selectGridRow(elements, rowIndex) {
   elements.get("batchGridBody").children[rowIndex].listeners.click();
 }
@@ -471,6 +483,55 @@ test("mountApp shows selected row error reasons and preview navigation state", (
     selectGridRow(elements, 0);
     assert.equal(previewPosition.textContent, "第 1 / 10 条");
     assert.match(recordInspector.textContent, /FNSKU/);
+  } finally {
+    restore();
+  }
+});
+
+test("mountApp restores export readiness after a single invalid cell is edited back to valid", () => {
+  const { elements, restore } = setupMockAppDom();
+
+  try {
+    assert.equal(mountApp(), true);
+
+    const validateData = elements.get("validateData");
+    const exportZip = elements.get("exportZip");
+
+    fillGridRow(elements, 0, ["SKU-1", "X001", "MFG-1", "中文名 1", "Item One", "BAD"]);
+    validateData.listeners.click();
+
+    assert.equal(exportZip.disabled, true);
+
+    const storeNameInput = getGridInput(elements, 0, 5);
+    storeNameInput.value = "NA";
+    storeNameInput.listeners.input();
+
+    assert.equal(exportZip.disabled, false);
+  } finally {
+    restore();
+  }
+});
+
+test("mountApp clears the ignored-extra-column notice after a normal grid edit", () => {
+  const { elements, restore } = setupMockAppDom();
+
+  try {
+    assert.equal(mountApp(), true);
+
+    const validationSummary = elements.get("validationSummary");
+
+    pasteIntoGridCell(
+      elements,
+      0,
+      0,
+      "SKU-1\tX001\tMFG-1\t中文名 1\tItem One\tNA\tEXTRA",
+    );
+
+    assert.match(validationSummary.textContent, /多余列已忽略/);
+
+    fillGridRow(elements, 0, ["SKU-2", "X002", "MFG-2", "中文名 2", "Item Two", "NA"]);
+
+    assert.doesNotMatch(validationSummary.textContent, /多余列已忽略/);
   } finally {
     restore();
   }
