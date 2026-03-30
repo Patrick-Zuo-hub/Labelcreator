@@ -185,11 +185,21 @@ test("createEmptyGridRows returns 10 blank editable rows", () => {
 
 test("applyGridPaste fills from the selected cell and pads missing cells", () => {
   const baseRows = createEmptyGridRows(3);
+  baseRows[1] = {
+    ...baseRows[1],
+    fnsku: "OLD-FNSKU",
+    manufactureSku: "OLD-MFG",
+    productChineseName: "OLD-NAME",
+    itemName: "OLD-ITEM",
+    storeName: "OLD-STORE",
+  };
   const result = applyGridPaste(baseRows, { row: 1, col: 2 }, "X001\tMFG-1\t中文名\tItem One\nX002\tMFG-2");
 
   assert.equal(result.rows[1].fnsku, "X001");
   assert.equal(result.rows[1].manufactureSku, "MFG-1");
   assert.equal(result.rows[1].productChineseName, "中文名");
+  assert.equal(result.rows[1].itemName, "Item One");
+  assert.equal(result.rows[1].storeName, "");
   assert.equal(result.rows[2].fnsku, "X002");
   assert.equal(result.rows[2].itemName, "");
 });

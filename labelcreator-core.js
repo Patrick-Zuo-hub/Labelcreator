@@ -47,11 +47,12 @@ export function applyGridPaste(rows, startCell, clipboardText) {
     if (!nextRows[targetRow]) return;
 
     const values = line.split("\t");
-    values.slice(0, GRID_COLUMNS.length - startColumnIndex).forEach((value, colOffset) => {
-      nextRows[targetRow][GRID_COLUMNS[startColumnIndex + colOffset]] = cleanCell(value);
-    });
+    const maxColumns = GRID_COLUMNS.length - startColumnIndex;
+    for (let colOffset = 0; colOffset < maxColumns; colOffset += 1) {
+      nextRows[targetRow][GRID_COLUMNS[startColumnIndex + colOffset]] = cleanCell(values[colOffset]);
+    }
 
-    if (values.length > GRID_COLUMNS.length - startColumnIndex) {
+    if (values.length > maxColumns) {
       ignoredExtraColumns = true;
     }
   });
