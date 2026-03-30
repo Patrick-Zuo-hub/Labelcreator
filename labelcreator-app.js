@@ -1,5 +1,7 @@
 import {
-  parseBatchText,
+  createEmptyGridRows,
+  applyGridPaste,
+  normalizeGridRowsForValidation,
   validateRecords,
   buildExportJobs,
   selectAdjacentIndex,
@@ -16,6 +18,17 @@ const EMPTY_PREVIEW = {
   condition: "NEW",
 };
 
+const GRID_FIELD_ORDER = [
+  "sku",
+  "fnsku",
+  "manufactureSku",
+  "productChineseName",
+  "itemName",
+  "storeName",
+];
+
+const GRID_HINT_TEXT = "SKU | FNSKU | Manufacture SKU | 产品中文名称 | Item Name | Store Name";
+
 const FIELD_LABELS = {
   row: "整行数据",
   sku: "SKU",
@@ -27,6 +40,7 @@ const FIELD_LABELS = {
 };
 
 const state = {
+  rows: createEmptyGridRows(),
   records: [],
   selectedIndex: 0,
   isExporting: false,
@@ -38,6 +52,7 @@ const state = {
     errors: [],
     canExport: false,
   },
+  gridRows: [],
 };
 
 function buildDatasetKey(records) {
@@ -97,7 +112,7 @@ export function getStatusMessage(result, uiState = {}, mode = "live") {
   }
 
   if (!result.records.length) {
-    return "请先粘贴 Excel 表格数据。";
+    return "请先填写表格数据。";
   }
 
   if (uiState.previewError) {
@@ -120,13 +135,27 @@ export function getStatusMessage(result, uiState = {}, mode = "live") {
 }
 
 function mountApp() {
+  state.rows = createEmptyGridRows();
+  state.records = [];
+  state.selectedIndex = 0;
+  state.isExporting = false;
+  state.previewError = null;
+  state.statusMode = "live";
+  state.validatedRecordKey = null;
+  state.validationResult = {
+    records: [],
+    errors: [],
+    canExport: false,
+  };
+  state.gridRows = [];
+
   const elements = {
-    pasteInput: document.getElementById("pasteInput"),
+    batchGridHint: document.getElementById("batchGridHint"),
+    batchGridBody: document.getElementById("batchGridBody"),
     clearData: document.getElementById("clearData"),
     validateData: document.getElementById("validateData"),
     exportZip: document.getElementById("exportZip"),
     status: document.getElementById("status"),
-    recordsBody: document.getElementById("recordsBody"),
     prevRecord: document.getElementById("prevRecord"),
     nextRecord: document.getElementById("nextRecord"),
     previewPosition: document.getElementById("previewPosition"),
@@ -142,7 +171,7 @@ function mountApp() {
     },
   };
 
-  if (!elements.pasteInput) {
+  if (!elements.batchGridBody || !elements.status || !elements.clearData || !elements.validateData || !elements.exportZip) {
     return false;
   }
 
@@ -186,16 +215,9 @@ function mountApp() {
       return;
     }
 
-    if (!state.records.length) {
-      elements.previewPosition.textContent = "未选择记录";
-      elements.prevRecord.disabled = true;
-      elements.nextRecord.disabled = true;
-      return;
-    }
-
-    elements.previewPosition.textContent = `第 ${state.selectedIndex + 1} / ${state.records.length} 条`;
+    elements.previewPosition.textContent = `第 ${state.selectedIndex + 1} / ${state.rows.length} 条`;
     elements.prevRecord.disabled = state.selectedIndex === 0;
-    elements.nextRecord.disabled = state.selectedIndex >= state.records.length - 1;
+    elements.nextRecord.disabled = state.selectedIndex >= state.rows.length - 1;
   }
 
   function updateStatus(result, mode = state.statusMode) {
@@ -243,107 +265,144 @@ function mountApp() {
     URL.revokeObjectURL(downloadUrl);
   }
 
-  function renderTable(records) {
-    elements.recordsBody.innerHTML = "";
+  function getSelectedGridRow() {
+    return state.rows[state.selectedIndex] || null;
+  }
 
-    records.forEach((record, index) => {
-      const row = document.createElement("tr");
-      row.dataset.index = String(index);
-      row.tabIndex = 0;
-      row.classList.toggle("selected", index === state.selectedIndex);
+  function getSelectedValidationRecord() {
+    return state.validationResult.records.find((record) => record.rowNumber === state.selectedIndex + 1) || null;
+  }
 
-      if (record.errors?.length) {
-        row.classList.add("has-errors");
-      }
+  function renderSelectedRowDetails() {
+    const currentRow = getSelectedGridRow();
+    const previewRecord = currentRow ? normalizeGridRowsForValidation([{ ...currentRow, rowNumber: state.selectedIndex + 1 }])[0] : null;
 
-      const cells = [
-        record.rowNumber,
-        record.sku,
-        record.fnsku,
-        record.manufactureSku,
-        record.productChineseName,
-        record.storeName,
-      ];
+    renderPreview(previewRecord ? toPreviewRecord(previewRecord) : null);
+    renderRecordInspector(getSelectedValidationRecord());
+  }
 
-      for (const value of cells) {
-        const cell = document.createElement("td");
-        cell.textContent = value || "—";
-        row.appendChild(cell);
-      }
-
-      const recordStatus = summarizeRecordErrors(record);
-      const statusCell = document.createElement("td");
-      statusCell.textContent = recordStatus.shortText;
-      statusCell.title = recordStatus.fullText;
-      row.appendChild(statusCell);
-
-      row.addEventListener("click", () => {
-        selectRecord(index);
-      });
-
-      row.addEventListener("keydown", (event) => {
-        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-          event.preventDefault();
-          const direction = event.key === "ArrowDown" ? 1 : -1;
-          moveSelection(direction);
-        }
-      });
-
-      elements.recordsBody.appendChild(row);
+  function refreshGridSelection() {
+    state.gridRows.forEach((rowElement, index) => {
+      rowElement.classList.toggle("selected", index === state.selectedIndex);
     });
   }
 
-  function selectRecord(index) {
-    if (!state.records.length) {
-      state.selectedIndex = 0;
-      renderPreview(null);
-      renderTable([]);
-      renderRecordInspector(null);
-      updatePreviewNavigation();
-      updateStatus(state.validationResult);
-      return;
-    }
+  function recomputeValidation() {
+    const result = validateRecords(normalizeGridRowsForValidation(state.rows));
 
-    state.selectedIndex = Math.max(0, Math.min(state.records.length - 1, index));
-    renderTable(state.records);
-    renderPreview(toPreviewRecord(state.records[state.selectedIndex]));
-    renderRecordInspector(state.records[state.selectedIndex]);
+    state.records = result.records;
+    state.validationResult = result;
+
+    return result;
+  }
+
+  function refreshFromValidation(mode = state.statusMode) {
+    renderSelectedRowDetails();
     updatePreviewNavigation();
-    updateStatus(state.validationResult);
+    updateStatus(state.validationResult, mode);
+    updateToolbar(state.validationResult);
+  }
+
+  function syncFromGrid() {
+    const result = recomputeValidation();
+    const datasetKey = buildDatasetKey(result.records);
+
+    state.statusMode = result.records.length > 0 && datasetKey === state.validatedRecordKey ? "validated" : "live";
+    refreshFromValidation();
+  }
+
+  function selectRow(index) {
+    state.selectedIndex = Math.max(0, Math.min(state.rows.length - 1, index));
+    refreshGridSelection();
+    refreshFromValidation();
   }
 
   function moveSelection(direction) {
-    const nextIndex = selectAdjacentIndex(state.selectedIndex, state.records.length, direction);
-    selectRecord(nextIndex);
+    const nextIndex = selectAdjacentIndex(state.selectedIndex, state.rows.length, direction);
+    selectRow(nextIndex);
 
-    const row = elements.recordsBody.querySelector(`[data-index="${nextIndex}"]`);
+    const row = state.gridRows[nextIndex];
     if (row) {
       row.focus();
     }
   }
 
-  function syncFromTextarea() {
-    const parsed = parseBatchText(elements.pasteInput.value);
-    const result = validateRecords(parsed);
-    const datasetKey = buildDatasetKey(result.records);
+  function renderGrid() {
+    elements.batchGridBody.innerHTML = "";
+    state.gridRows = [];
 
-    state.records = result.records;
-    state.validationResult = result;
-    state.selectedIndex = 0;
-    state.statusMode = result.records.length > 0 && datasetKey === state.validatedRecordKey ? "validated" : "live";
+    if (elements.batchGridHint) {
+      elements.batchGridHint.textContent = GRID_HINT_TEXT;
+    }
 
-    renderTable(result.records);
-    renderPreview(result.records[0] ? toPreviewRecord(result.records[0]) : null);
-    renderRecordInspector(result.records[0] || null);
-    updatePreviewNavigation();
-    updateStatus(result);
-    updateToolbar(result);
+    state.rows.forEach((row, rowIndex) => {
+      const rowElement = document.createElement("div");
+      rowElement.classList.add("batch-grid-row");
+      rowElement.dataset.index = String(rowIndex);
+      rowElement.tabIndex = 0;
+
+      rowElement.addEventListener("click", () => {
+        selectRow(rowIndex);
+      });
+      rowElement.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+          event.preventDefault();
+          moveSelection(event.key === "ArrowDown" ? 1 : -1);
+        }
+      });
+
+      GRID_FIELD_ORDER.forEach((field, fieldIndex) => {
+        const cell = document.createElement("div");
+        cell.classList.add("batch-grid-cell");
+
+        const input = document.createElement("input");
+        input.classList.add("batch-grid-input");
+        input.type = "text";
+        input.value = row[field] || "";
+        input.placeholder = FIELD_LABELS[field];
+        input.title = FIELD_LABELS[field];
+        input.dataset.row = String(rowIndex);
+        input.dataset.field = field;
+        input.setAttribute("aria-label", `${FIELD_LABELS[field]} 第 ${rowIndex + 1} 行`);
+
+        input.addEventListener("focus", () => {
+          selectRow(rowIndex);
+        });
+        input.addEventListener("input", () => {
+          state.rows[rowIndex][field] = input.value;
+          syncFromGrid();
+        });
+        input.addEventListener("paste", (event) => {
+          const clipboardText = event?.clipboardData?.getData?.("text") ?? "";
+          if (!clipboardText) {
+            return;
+          }
+
+          event.preventDefault?.();
+          const result = applyGridPaste(state.rows, { row: rowIndex, col: fieldIndex + 1 }, clipboardText);
+          state.rows = result.rows;
+          renderGrid();
+          syncFromGrid();
+        });
+
+        cell.appendChild(input);
+        rowElement.appendChild(cell);
+      });
+
+      elements.batchGridBody.appendChild(rowElement);
+      state.gridRows.push(rowElement);
+    });
+
+    refreshGridSelection();
   }
 
-  elements.pasteInput.addEventListener("input", syncFromTextarea);
+  renderGrid();
+  recomputeValidation();
+  refreshFromValidation();
+  updatePreviewNavigation();
 
   elements.clearData.addEventListener("click", () => {
-    elements.pasteInput.value = "";
+    state.rows = createEmptyGridRows();
     state.records = [];
     state.isExporting = false;
     state.previewError = null;
@@ -351,38 +410,19 @@ function mountApp() {
     state.validatedRecordKey = null;
     state.validationResult = { records: [], errors: [], canExport: false };
     state.selectedIndex = 0;
-    renderTable([]);
-    renderPreview(null);
-    renderRecordInspector(null);
-    updatePreviewNavigation();
-    updateStatus(state.validationResult);
-    updateToolbar(state.validationResult);
+
+    renderGrid();
+    recomputeValidation();
+    refreshFromValidation();
   });
 
   elements.validateData.addEventListener("click", () => {
-    const parsed = parseBatchText(elements.pasteInput.value);
-    const result = validateRecords(parsed);
+    const result = recomputeValidation();
     const datasetKey = buildDatasetKey(result.records);
 
-    state.records = result.records;
-    state.validationResult = result;
     state.statusMode = result.records.length > 0 ? "validated" : "live";
     state.validatedRecordKey = result.records.length > 0 ? datasetKey : null;
-    if (state.records.length > 0) {
-      state.selectedIndex = Math.min(state.selectedIndex, state.records.length - 1);
-      renderTable(state.records);
-      renderPreview(toPreviewRecord(state.records[state.selectedIndex]));
-      renderRecordInspector(state.records[state.selectedIndex]);
-      updatePreviewNavigation();
-    } else {
-      state.selectedIndex = 0;
-      renderTable([]);
-      renderPreview(null);
-      renderRecordInspector(null);
-      updatePreviewNavigation();
-    }
-    updateStatus(result, "validated");
-    updateToolbar(result);
+    refreshFromValidation("validated");
   });
 
   elements.prevRecord?.addEventListener("click", () => {
@@ -415,12 +455,6 @@ function mountApp() {
       updateToolbar(state.validationResult);
     }
   });
-
-  renderPreview(null);
-  renderRecordInspector(null);
-  updatePreviewNavigation();
-  updateStatus(state.validationResult);
-  updateToolbar(state.validationResult);
 
   return true;
 }

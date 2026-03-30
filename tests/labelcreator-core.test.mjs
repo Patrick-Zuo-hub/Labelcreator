@@ -97,6 +97,71 @@ function createMockElement(tagName = "div") {
   return element;
 }
 
+function setupMockAppDom() {
+  const elements = new Map();
+  const ids = [
+    "clearData",
+    "validateData",
+    "exportZip",
+    "status",
+    "prevRecord",
+    "nextRecord",
+    "previewPosition",
+    "recordInspector",
+    "vManufactureSku",
+    "vFnsku",
+    "vSku",
+    "vItemName",
+    "vStoreName",
+    "vCondition",
+    "barcodePreview",
+    "batchGridHint",
+    "batchGridBody",
+  ];
+
+  for (const id of ids) {
+    elements.set(id, createMockElement(id === "barcodePreview" ? "svg" : "div"));
+  }
+
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+
+  globalThis.document = {
+    getElementById(id) {
+      return elements.get(id) || null;
+    },
+    createElement(tagName) {
+      return createMockElement(tagName);
+    },
+    body: createMockElement("body"),
+  };
+  globalThis.window = {};
+
+  return {
+    elements,
+    restore() {
+      globalThis.document = originalDocument;
+      globalThis.window = originalWindow;
+    },
+  };
+}
+
+function getGridInput(elements, rowIndex, fieldIndex) {
+  return elements.get("batchGridBody").children[rowIndex].children[fieldIndex].children[0];
+}
+
+function fillGridRow(elements, rowIndex, values) {
+  values.forEach((value, fieldIndex) => {
+    const input = getGridInput(elements, rowIndex, fieldIndex);
+    input.value = value;
+    input.listeners.input();
+  });
+}
+
+function selectGridRow(elements, rowIndex) {
+  elements.get("batchGridBody").children[rowIndex].listeners.click();
+}
+
 test("parseBatchText returns one normalized record for one pasted row", () => {
   const rows = parseBatchText("SKU-1\tX001\tMFG-1\t中文名\tItem Name\tNA");
 
@@ -283,210 +348,104 @@ test("getStatusMessage keeps validated export blocked when label data is not ASC
 });
 
 test("mountApp keeps validated status wording through the real validate button flow", () => {
-  const elements = new Map();
-  const ids = [
-    "pasteInput",
-    "clearData",
-    "validateData",
-    "exportZip",
-    "status",
-    "recordsBody",
-    "vManufactureSku",
-    "vFnsku",
-    "vSku",
-    "vItemName",
-    "vStoreName",
-    "vCondition",
-    "barcodePreview",
-    "prevRecord",
-    "nextRecord",
-    "previewPosition",
-    "recordInspector",
-  ];
-
-  for (const id of ids) {
-    elements.set(id, createMockElement(id === "barcodePreview" ? "svg" : "div"));
-  }
-
-  const originalDocument = globalThis.document;
-  const originalWindow = globalThis.window;
-
-  globalThis.document = {
-    getElementById(id) {
-      return elements.get(id) || null;
-    },
-    createElement(tagName) {
-      return createMockElement(tagName);
-    },
-    body: createMockElement("body"),
-  };
-  globalThis.window = {};
+  const { elements, restore } = setupMockAppDom();
 
   try {
     assert.equal(mountApp(), true);
 
-    const pasteInput = elements.get("pasteInput");
     const validateData = elements.get("validateData");
     const status = elements.get("status");
 
-    pasteInput.value = "SKU-1\tX001\tMFG-1\t中文名 1\tItem One\tNA";
-    pasteInput.listeners.input();
+    fillGridRow(elements, 0, ["SKU-1", "X001", "MFG-1", "中文名 1", "Item One", "NA"]);
     assert.equal(status.textContent, "已载入 1 条记录，尚未校验。");
 
     validateData.listeners.click();
     assert.equal(status.textContent, "校验通过，共 1 条记录。可以导出 ZIP。");
 
-    pasteInput.value = "SKU-2\tX002\tMFG-2\t中文名 2\t咖啡凳\tNA";
+    fillGridRow(elements, 0, ["SKU-2", "X002", "MFG-2", "中文名 2", "咖啡凳", "NA"]);
     validateData.listeners.click();
     assert.match(status.textContent, /当前无法导出 PDF/);
   } finally {
-    globalThis.document = originalDocument;
-    globalThis.window = originalWindow;
+    restore();
   }
 });
 
 test("mountApp preserves validated status while selecting a different row from the same dataset", () => {
-  const elements = new Map();
-  const ids = [
-    "pasteInput",
-    "clearData",
-    "validateData",
-    "exportZip",
-    "status",
-    "recordsBody",
-    "vManufactureSku",
-    "vFnsku",
-    "vSku",
-    "vItemName",
-    "vStoreName",
-    "vCondition",
-    "barcodePreview",
-    "prevRecord",
-    "nextRecord",
-    "previewPosition",
-    "recordInspector",
-  ];
-
-  for (const id of ids) {
-    elements.set(id, createMockElement(id === "barcodePreview" ? "svg" : "div"));
-  }
-
-  const originalDocument = globalThis.document;
-  const originalWindow = globalThis.window;
-
-  globalThis.document = {
-    getElementById(id) {
-      return elements.get(id) || null;
-    },
-    createElement(tagName) {
-      return createMockElement(tagName);
-    },
-    body: createMockElement("body"),
-  };
-  globalThis.window = {};
+  const { elements, restore } = setupMockAppDom();
 
   try {
     assert.equal(mountApp(), true);
 
-    const pasteInput = elements.get("pasteInput");
     const validateData = elements.get("validateData");
-    const recordsBody = elements.get("recordsBody");
     const status = elements.get("status");
     const nextRecord = elements.get("nextRecord");
 
-    pasteInput.value = [
-      "SKU-1\tX001\tMFG-1\t中文名 1\tItem One\tNA",
-      "SKU-2\tX002\tMFG-2\t中文名 2\tItem Two\tNA",
-    ].join("\n");
-    pasteInput.listeners.input();
+    fillGridRow(elements, 0, ["SKU-1", "X001", "MFG-1", "中文名 1", "Item One", "NA"]);
+    fillGridRow(elements, 1, ["SKU-2", "X002", "MFG-2", "中文名 2", "Item Two", "NA"]);
     validateData.listeners.click();
 
     assert.equal(status.textContent, "校验通过，共 2 条记录。可以导出 ZIP。");
-    recordsBody.children[1].listeners.click();
+    selectGridRow(elements, 1);
     assert.equal(status.textContent, "校验通过，共 2 条记录。可以导出 ZIP。");
 
     nextRecord.listeners.click();
     assert.equal(status.textContent, "校验通过，共 2 条记录。可以导出 ZIP。");
   } finally {
-    globalThis.document = originalDocument;
-    globalThis.window = originalWindow;
+    restore();
   }
 });
 
-test("mountApp shows selected row error reasons and preview navigation state", () => {
-  const elements = new Map();
-  const ids = [
-    "pasteInput",
-    "clearData",
-    "validateData",
-    "exportZip",
-    "status",
-    "recordsBody",
-    "vManufactureSku",
-    "vFnsku",
-    "vSku",
-    "vItemName",
-    "vStoreName",
-    "vCondition",
-    "barcodePreview",
-    "prevRecord",
-    "nextRecord",
-    "previewPosition",
-    "recordInspector",
-  ];
-
-  for (const id of ids) {
-    elements.set(id, createMockElement(id === "barcodePreview" ? "svg" : "div"));
-  }
-
-  const originalDocument = globalThis.document;
-  const originalWindow = globalThis.window;
-
-  globalThis.document = {
-    getElementById(id) {
-      return elements.get(id) || null;
-    },
-    createElement(tagName) {
-      return createMockElement(tagName);
-    },
-    body: createMockElement("body"),
-  };
-  globalThis.window = {};
+test("mountApp renders 10 editable grid rows by default with the fixed column hint visible", () => {
+  const { elements, restore } = setupMockAppDom();
 
   try {
     assert.equal(mountApp(), true);
 
-    const pasteInput = elements.get("pasteInput");
-    const recordsBody = elements.get("recordsBody");
+    const gridBody = elements.get("batchGridBody");
+    const gridHint = elements.get("batchGridHint");
+
+    assert.equal(gridBody.children.length, 10);
+    assert.match(
+      gridHint.textContent,
+      /SKU \| FNSKU \| Manufacture SKU \| 产品中文名称 \| Item Name \| Store Name/,
+    );
+  } finally {
+    restore();
+  }
+});
+
+test("mountApp shows selected row error reasons and preview navigation state", () => {
+  const { elements, restore } = setupMockAppDom();
+
+  try {
+    assert.equal(mountApp(), true);
+
     const previewPosition = elements.get("previewPosition");
     const recordInspector = elements.get("recordInspector");
     const prevRecord = elements.get("prevRecord");
     const nextRecord = elements.get("nextRecord");
 
-    pasteInput.value = [
-      "SKU-1\t\tMFG-1\t中文名 1\tItem One\tBAD",
-      "SKU-2\tX002\tMFG-2\t中文名 2\tItem Two\tNA",
-    ].join("\n");
-    pasteInput.listeners.input();
+    fillGridRow(elements, 0, ["SKU-1", "", "MFG-1", "中文名 1", "Item One", "BAD"]);
+    fillGridRow(elements, 1, ["SKU-2", "X002", "MFG-2", "中文名 2", "Item Two", "NA"]);
+    elements.get("validateData").listeners.click();
 
     assert.match(recordInspector.textContent, /FNSKU/);
     assert.match(recordInspector.textContent, /Store Name/);
-    assert.equal(previewPosition.textContent, "第 1 / 2 条");
+    assert.equal(previewPosition.textContent, "第 1 / 10 条");
     assert.equal(prevRecord.disabled, true);
     assert.equal(nextRecord.disabled, false);
 
     nextRecord.listeners.click();
-    assert.equal(previewPosition.textContent, "第 2 / 2 条");
+    assert.equal(previewPosition.textContent, "第 2 / 10 条");
     assert.match(recordInspector.textContent, /当前记录校验通过/);
     assert.equal(prevRecord.disabled, false);
-    assert.equal(nextRecord.disabled, true);
+    assert.equal(nextRecord.disabled, false);
 
-    recordsBody.children[0].listeners.click();
-    assert.equal(previewPosition.textContent, "第 1 / 2 条");
+    selectGridRow(elements, 0);
+    assert.equal(previewPosition.textContent, "第 1 / 10 条");
     assert.match(recordInspector.textContent, /FNSKU/);
   } finally {
-    globalThis.document = originalDocument;
-    globalThis.window = originalWindow;
+    restore();
   }
 });
 

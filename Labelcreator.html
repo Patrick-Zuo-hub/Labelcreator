@@ -180,6 +180,111 @@
       line-height: 1.5;
     }
 
+    .grid-shell {
+      padding: 18px;
+      border-radius: 22px;
+      border: 1px solid rgba(17, 17, 17, 0.08);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 243, 236, 0.98));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    }
+
+    .grid-shell-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .grid-shell-chip {
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(191, 74, 43, 0.08);
+      letter-spacing: 0.02em;
+    }
+
+    .grid-shell-note {
+      margin: 0 0 14px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .batch-grid-scroll {
+      overflow: auto;
+      border-radius: 18px;
+      border: 1px solid rgba(17, 17, 17, 0.08);
+      background: rgba(255, 255, 255, 0.78);
+    }
+
+    .batch-grid-head,
+    .batch-grid-row {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(150px, 1fr));
+      gap: 10px;
+    }
+
+    .batch-grid-head {
+      padding: 14px 16px 10px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .batch-grid-body {
+      display: grid;
+      gap: 10px;
+      padding: 0 10px 10px;
+    }
+
+    .batch-grid-row {
+      padding: 10px;
+      border-radius: 18px;
+      border: 1px solid rgba(17, 17, 17, 0.08);
+      background: rgba(255, 255, 255, 0.88);
+      transition: background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+    }
+
+    .batch-grid-row:hover,
+    .batch-grid-row.selected {
+      border-color: rgba(191, 74, 43, 0.22);
+      background: rgba(191, 74, 43, 0.04);
+      box-shadow: 0 8px 22px rgba(59, 39, 15, 0.08);
+    }
+
+    .batch-grid-cell {
+      min-width: 0;
+    }
+
+    .batch-grid-input {
+      width: 100%;
+      min-width: 0;
+      border: 1px solid rgba(17, 17, 17, 0.1);
+      border-radius: 14px;
+      padding: 11px 12px;
+      background: rgba(252, 250, 246, 0.96);
+      color: var(--ink);
+      font: 500 13px/1.4 "SFMono-Regular", "Menlo", "Monaco", monospace;
+      outline: none;
+      transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+    }
+
+    .batch-grid-input::placeholder {
+      color: rgba(107, 98, 87, 0.72);
+    }
+
+    .batch-grid-input:focus {
+      border-color: rgba(191, 74, 43, 0.55);
+      box-shadow: 0 0 0 4px rgba(191, 74, 43, 0.08);
+      transform: translateY(-1px);
+    }
+
     .status {
       margin-top: 12px;
       min-height: 20px;
@@ -432,8 +537,26 @@
     <section class="layout">
       <section class="panel form-panel">
         <h2 class="section-title">批量标签数据</h2>
-        <p class="hint">固定列顺序：SKU | FNSKU | Manufacture SKU | 产品中文名称 | Item Name | Store Name。批量粘贴后自动解析并逐行预览，仅保留 PDF 导出，PNG 和打印入口已移除。</p>
-        <textarea id="pasteInput" class="paste-input" placeholder="直接粘贴 Excel 多行数据"></textarea>
+        <p class="hint">固定列顺序：SKU | FNSKU | Manufacture SKU | 产品中文名称 | Item Name | Store Name。直接在网格中编辑，默认提供 10 行空白记录，预览和导出会跟随当前行更新。</p>
+
+        <div class="grid-shell" aria-label="批量编辑网格">
+          <div class="grid-shell-header">
+            <strong>Editable Batch Grid</strong>
+            <span class="grid-shell-chip">10 blank rows</span>
+          </div>
+          <p class="grid-shell-note" id="batchGridHint">SKU | FNSKU | Manufacture SKU | 产品中文名称 | Item Name | Store Name</p>
+          <div class="batch-grid-scroll">
+            <div class="batch-grid-head" aria-hidden="true">
+              <div>SKU</div>
+              <div>FNSKU</div>
+              <div>Manufacture SKU</div>
+              <div>产品中文名称</div>
+              <div>Item Name</div>
+              <div>Store Name</div>
+            </div>
+            <div class="batch-grid-body" id="batchGridBody"></div>
+          </div>
+        </div>
 
         <div class="toolbar">
           <button type="button" class="secondary" id="clearData">清空数据</button>
@@ -442,22 +565,6 @@
         </div>
 
         <div class="status" id="status"></div>
-        <div class="table-shell">
-          <table class="records-table">
-            <thead>
-              <tr>
-                <th>Row</th>
-                <th>SKU</th>
-                <th>FNSKU</th>
-                <th>Manufacture SKU</th>
-                <th>产品中文名称</th>
-                <th>Store Name</th>
-                <th>校验</th>
-              </tr>
-            </thead>
-            <tbody id="recordsBody"></tbody>
-          </table>
-        </div>
       </section>
 
       <section class="panel preview-panel">
