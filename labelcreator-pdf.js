@@ -1,7 +1,9 @@
 const LABEL_MM = {
   width: 60,
   height: 30,
-  margin: 1.5,
+  marginX: 3,
+  marginY: 1.5,
+  barcodeWidth: 52,
   font: 2.8,
   barcodeTop: 4.7,
   barcodeHeight: 10.4,
@@ -161,13 +163,14 @@ export function buildPdf(labelData) {
 
   const pageWidthPt = mmToPt(LABEL_MM.width);
   const pageHeightPt = mmToPt(LABEL_MM.height);
-  const marginPt = mmToPt(LABEL_MM.margin);
-  const contentWidthPt = pageWidthPt - marginPt * 2;
+  const marginXPt = mmToPt(LABEL_MM.marginX);
+  const contentWidthPt = pageWidthPt - marginXPt * 2;
+  const barcodeWidthPt = mmToPt(LABEL_MM.barcodeWidth);
   const ascentFactor = 0.78;
 
   const barcode = encodeCode128B(labelData.fnsku);
-  const modulePt = contentWidthPt / barcode.totalModules;
-  let barcodeCursor = marginPt;
+  const modulePt = barcodeWidthPt / barcode.totalModules;
+  let barcodeCursor = (pageWidthPt - barcodeWidthPt) / 2;
   const barTopPt = pageHeightPt - mmToPt(LABEL_MM.barcodeTop + LABEL_MM.barcodeHeight);
   const barHeightPt = mmToPt(LABEL_MM.barcodeHeight);
 
@@ -180,12 +183,12 @@ export function buildPdf(labelData) {
   function pushText(text, topMm, align, maxWidthMm) {
     const fontPt = fitFontPt(text, maxWidthMm, LABEL_MM.font);
     const textWidthPt = pdfTextWidthPt(text, fontPt * 96 / 72);
-    let xPt = marginPt;
+    let xPt = marginXPt;
 
     if (align === "center") {
       xPt = (pageWidthPt - textWidthPt) / 2;
     } else if (align === "right") {
-      xPt = pageWidthPt - marginPt - textWidthPt;
+      xPt = pageWidthPt - marginXPt - textWidthPt;
     }
 
     ops.push(
@@ -208,12 +211,12 @@ export function buildPdf(labelData) {
     barcodeCursor += widthPt;
   }
 
-  pushText(labelData.manufactureSku, LABEL_MM.margin, "center", LABEL_MM.width - LABEL_MM.margin * 2);
-  pushText(labelData.fnsku, LABEL_MM.fnskuTop, "center", LABEL_MM.width - LABEL_MM.margin * 2);
-  pushText(labelData.itemName, LABEL_MM.itemTop, "left", LABEL_MM.width - LABEL_MM.margin * 2);
-  pushText(labelData.sku, LABEL_MM.skuTop, "left", (LABEL_MM.width - LABEL_MM.margin * 2) * 0.76);
-  pushText(labelData.condition, LABEL_MM.bottomTop, "left", (LABEL_MM.width - LABEL_MM.margin * 2) * 0.42);
-  pushText(labelData.storeName, LABEL_MM.bottomTop, "right", (LABEL_MM.width - LABEL_MM.margin * 2) * 0.26);
+  pushText(labelData.manufactureSku, LABEL_MM.marginY, "center", LABEL_MM.width - LABEL_MM.marginX * 2);
+  pushText(labelData.fnsku, LABEL_MM.fnskuTop, "center", LABEL_MM.width - LABEL_MM.marginX * 2);
+  pushText(labelData.itemName, LABEL_MM.itemTop, "left", LABEL_MM.width - LABEL_MM.marginX * 2);
+  pushText(labelData.sku, LABEL_MM.skuTop, "left", (LABEL_MM.width - LABEL_MM.marginX * 2) * 0.76);
+  pushText(labelData.condition, LABEL_MM.bottomTop, "left", (LABEL_MM.width - LABEL_MM.marginX * 2) * 0.42);
+  pushText(labelData.storeName, LABEL_MM.bottomTop, "right", (LABEL_MM.width - LABEL_MM.marginX * 2) * 0.26);
 
   const stream = ops.join("\n");
   const objects = [

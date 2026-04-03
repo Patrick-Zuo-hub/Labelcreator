@@ -44,3 +44,22 @@ test("buildPdf returns an application/pdf blob for ASCII label content", async (
   assert.match(pdf, /\(25W027\) Tj ET/);
   assert.match(pdf, /\(X0050P4BTR\) Tj ET/);
 });
+
+test("buildPdf centers a 52mm barcode area while keeping text margins unchanged", async () => {
+  const blob = buildPdf({
+    manufactureSku: "25W027",
+    fnsku: "X0050P4BTR",
+    sku: "F-TSB-C3-TK-TW",
+    itemName: "TeakAura Bench",
+    storeName: "NA",
+    condition: "NEW",
+  });
+
+  const pdf = await blob.text();
+
+  assert.match(pdf, /^11\.339 42\.236 2\.\d+ 29\.480 re f/m);
+  assert.match(pdf, /BT \/F1 7\.94 Tf 1 0 0 1 8\.50 24\.99 Tm \(TeakAura Bench\) Tj ET/);
+  assert.match(pdf, /BT \/F1 7\.94 Tf 1 0 0 1 8\.50 16\.20 Tm \(F-TSB-C3-TK-TW\) Tj ET/);
+  assert.match(pdf, /BT \/F1 7\.94 Tf 1 0 0 1 8\.50 7\.70 Tm \(NEW\) Tj ET/);
+  assert.match(pdf, /BT \/F1 7\.94 Tf 1 0 0 1 152\.69 7\.70 Tm \(NA\) Tj ET/);
+});
