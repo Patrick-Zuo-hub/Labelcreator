@@ -48,7 +48,8 @@ export function applyGridPaste(rows, startCell, clipboardText) {
 
     const values = line.split("\t");
     const maxColumns = GRID_COLUMNS.length - startColumnIndex;
-    for (let colOffset = 0; colOffset < maxColumns; colOffset += 1) {
+    const appliedColumns = Math.min(values.length, maxColumns);
+    for (let colOffset = 0; colOffset < appliedColumns; colOffset += 1) {
       nextRows[targetRow][GRID_COLUMNS[startColumnIndex + colOffset]] = cleanCell(values[colOffset]);
     }
 
@@ -171,7 +172,7 @@ export function validateRecords(records) {
 export function buildPdfFilename(record) {
   const safe = (value) => String(value ?? "").replace(/[\\/:*?"<>|]/g, "-").trim();
 
-  return `【标签】--${safe(record.productChineseName)}--${safe(record.storeName)}--${safe(record.fnsku)}.pdf`;
+  return `【标签】${safe(record.manufactureSku)}-${safe(record.productChineseName)}-${safe(record.fnsku)}-${safe(record.storeName)}.pdf`;
 }
 
 function withFilenameSuffix(filename, suffixNumber) {

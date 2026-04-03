@@ -261,7 +261,7 @@ test("createEmptyGridRows returns 10 blank editable rows", () => {
   assert.equal(rows[0].storeName, "");
 });
 
-test("applyGridPaste fills from the selected cell and pads missing cells", () => {
+test("applyGridPaste fills from the selected cell and preserves trailing cells outside the pasted values", () => {
   const baseRows = createEmptyGridRows(3);
   baseRows[1] = {
     ...baseRows[1],
@@ -277,7 +277,7 @@ test("applyGridPaste fills from the selected cell and pads missing cells", () =>
   assert.equal(result.rows[1].manufactureSku, "MFG-1");
   assert.equal(result.rows[1].productChineseName, "中文名");
   assert.equal(result.rows[1].itemName, "Item One");
-  assert.equal(result.rows[1].storeName, "");
+  assert.equal(result.rows[1].storeName, "OLD-STORE");
   assert.equal(result.rows[2].fnsku, "X002");
   assert.equal(result.rows[2].itemName, "");
 });
@@ -571,12 +571,13 @@ test("mountApp starts a fresh remount without a stale ignored-extra-column notic
 
 test("buildPdfFilename uses the agreed naming rule and replaces unsafe characters", () => {
   const filename = buildPdfFilename({
+    manufactureSku: "MFG/24",
     productChineseName: "浴室凳/24",
     storeName: "NA",
     fnsku: "X001:ABC",
   });
 
-  assert.equal(filename, "【标签】--浴室凳-24--NA--X001-ABC.pdf");
+  assert.equal(filename, "【标签】MFG-24-浴室凳-24-X001-ABC-NA.pdf");
 });
 
 test("selectAdjacentIndex clamps previous and next navigation at the edges", () => {
@@ -617,7 +618,7 @@ test("buildExportJobs returns one PDF job per validated record", () => {
   ]);
 
   assert.equal(jobs.length, 1);
-  assert.equal(jobs[0].filename, "【标签】--中文名 1--NA--X001.pdf");
+  assert.equal(jobs[0].filename, "【标签】MFG-1-中文名 1-X001-NA.pdf");
   assert.deepEqual(jobs[0].labelData, {
     manufactureSku: "MFG-1",
     fnsku: "X001",
@@ -676,7 +677,7 @@ test("buildExportJobs excludes rows with validation errors, raw rows without val
   ]);
 
   assert.equal(jobs.length, 1);
-  assert.equal(jobs[0].filename, "【标签】--中文名 1--NA--X001.pdf");
+  assert.equal(jobs[0].filename, "【标签】MFG-1-中文名 1-X001-NA.pdf");
 });
 
 test("buildExportJobs blocks otherwise valid rows whose label data is not ASCII-safe", () => {
@@ -703,7 +704,7 @@ test("buildExportJobs keeps one PDF per validated row when filenames collide", (
       rowNumber: 2,
       sku: "SKU-2",
       fnsku: "X001",
-      manufactureSku: "MFG-2",
+      manufactureSku: "MFG-1",
       productChineseName: "中文名 1",
       itemName: "Item Two",
       storeName: "NA",
@@ -714,7 +715,7 @@ test("buildExportJobs keeps one PDF per validated row when filenames collide", (
       rowNumber: 3,
       sku: "SKU-3",
       fnsku: "X001",
-      manufactureSku: "MFG-3",
+      manufactureSku: "MFG-1",
       productChineseName: "中文名 1",
       itemName: "Item Three",
       storeName: "NA",
@@ -725,8 +726,8 @@ test("buildExportJobs keeps one PDF per validated row when filenames collide", (
 
   assert.equal(jobs.length, 3);
   assert.deepEqual(jobs.map((job) => job.filename), [
-    "【标签】--中文名 1--NA--X001.pdf",
-    "【标签】--中文名 1--NA--X001 (2).pdf",
-    "【标签】--中文名 1--NA--X001 (3).pdf",
+    "【标签】MFG-1-中文名 1-X001-NA.pdf",
+    "【标签】MFG-1-中文名 1-X001-NA (2).pdf",
+    "【标签】MFG-1-中文名 1-X001-NA (3).pdf",
   ]);
 });
