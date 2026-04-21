@@ -137,8 +137,58 @@ export function encodeCode128B(text) {
   return { input, bars, totalModules };
 }
 
+function isNumericEvenLength(value) {
+  return /^\d+$/.test(value) && value.length % 2 === 0;
+}
+
+export function encodeCode128C(text) {
+  const input = valueOrFallback(text, "FNSKU");
+
+  if (!/^\d+$/.test(input)) {
+    throw new Error("Code 128 C supports digits only.");
+  }
+
+  if (input.length % 2 !== 0) {
+    throw new Error("Code 128 C requires an even number of digits.");
+  }
+
+  const codes = [105];
+  let checksum = 105;
+
+  for (let index = 0; index < input.length; index += 2) {
+    const pairValue = Number(input.slice(index, index + 2));
+    codes.push(pairValue);
+    checksum += pairValue * (index / 2 + 1);
+  }
+
+  codes.push(checksum % 103, 106);
+
+  const bars = [];
+  let totalModules = 0;
+
+  for (const code of codes) {
+    const pattern = CODE128_PATTERNS[code];
+    for (let i = 0; i < pattern.length; i += 1) {
+      const width = Number(pattern[i]);
+      const isBar = i % 2 === 0;
+      bars.push({ isBar, width });
+      totalModules += width;
+    }
+  }
+
+  return { input, bars, totalModules };
+}
+
+export function encodeBarcodeAuto(text) {
+  const input = valueOrFallback(text, "FNSKU");
+  if (isNumericEvenLength(input)) {
+    return encodeCode128C(input);
+  }
+  return encodeCode128B(input);
+}
+
 export function barcodeSvgMarkup(text) {
-  const barcode = encodeCode128B(text);
+  const barcode = encodeBarcodeAuto(text);
   const height = 64;
   const rects = [];
   let cursor = 0;
@@ -168,7 +218,7 @@ export function buildPdf(labelData) {
   const barcodeWidthPt = mmToPt(LABEL_MM.barcodeWidth);
   const ascentFactor = 0.78;
 
-  const barcode = encodeCode128B(labelData.fnsku);
+  const barcode = encodeBarcodeAuto(labelData.fnsku);
   const modulePt = barcodeWidthPt / barcode.totalModules;
   let barcodeCursor = (pageWidthPt - barcodeWidthPt) / 2;
   const barTopPt = pageHeightPt - mmToPt(LABEL_MM.barcodeTop + LABEL_MM.barcodeHeight);
