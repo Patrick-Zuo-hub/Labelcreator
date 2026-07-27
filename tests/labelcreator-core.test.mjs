@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  STORE_OPTIONS,
   createEmptyGridRows,
   applyGridPaste,
   mapCellErrors,
@@ -188,7 +189,7 @@ test("parseBatchText returns one normalized record for one pasted row", () => {
   assert.equal(rows[0].condition, "NEW");
 });
 
-test("parseBatchText trims fields, skips whitespace-only lines, and defaults store name", () => {
+test("parseBatchText trims fields and preserves a blank store name", () => {
   const rows = parseBatchText("\n  SKU-2 \t X002 \t MFG-2 \t 中文名2 \t Item Name 2 \t   \n   \n");
 
   assert.equal(rows.length, 1);
@@ -197,7 +198,7 @@ test("parseBatchText trims fields, skips whitespace-only lines, and defaults sto
   assert.equal(rows[0].manufactureSku, "MFG-2");
   assert.equal(rows[0].productChineseName, "中文名2");
   assert.equal(rows[0].itemName, "Item Name 2");
-  assert.equal(rows[0].storeName, "NA");
+  assert.equal(rows[0].storeName, "");
   assert.equal(rows[0].condition, "NEW");
 });
 
@@ -214,7 +215,7 @@ test("parseBatchText preserves empty leading columns without shifting later fiel
   assert.equal(rows[0].condition, "NEW");
 });
 
-test("parseBatchText ignores blank lines and defaults Store Name and Condition", () => {
+test("parseBatchText ignores blank lines and preserves blank Store Name", () => {
   const input = [
     "SKU-1\tX001\tMFG-1\t中文名 1\tItem One\t",
     "",
@@ -231,7 +232,7 @@ test("parseBatchText ignores blank lines and defaults Store Name and Condition",
     manufactureSku: "MFG-1",
     productChineseName: "中文名 1",
     itemName: "Item One",
-    storeName: "NA",
+    storeName: "",
     condition: "NEW",
     rawColumns: ["SKU-1", "X001", "MFG-1", "中文名 1", "Item One", ""],
   });
@@ -308,8 +309,58 @@ test("normalizeGridRowsForValidation keeps only rows with meaningful input", () 
 
   assert.equal(rows.length, 1);
   assert.equal(rows[0].rowNumber, 2);
-  assert.equal(rows[0].storeName, "NA");
+  assert.equal(rows[0].storeName, "");
   assert.equal(rows[0].condition, "NEW");
+});
+
+test("STORE_OPTIONS exposes the ordered Store Name suggestions", () => {
+  assert.deepEqual(STORE_OPTIONS, ["NA", "EU", "AU", "Walmart-US"]);
+});
+
+test("validateRecords reports one required error for a blank Store Name", () => {
+  const rows = normalizeGridRowsForValidation([
+    {
+      rowNumber: 1,
+      sku: "SKU-1",
+      fnsku: "X001",
+      manufactureSku: "MFG-1",
+      productChineseName: "中文名",
+      itemName: "Item One",
+      storeName: "",
+    },
+  ]);
+
+  const result = validateRecords(rows);
+  const storeErrors = result.errors.filter((error) => error.field === "storeName");
+
+  assert.equal(result.canExport, false);
+  assert.equal(storeErrors.length, 1);
+  assert.match(storeErrors[0].message, /required/);
+  assert.doesNotMatch(storeErrors[0].message, /must be one of/);
+});
+
+test("validateRecords accepts exact Store Name values and trims surrounding spaces", () => {
+  for (const storeName of [...STORE_OPTIONS, " NA "]) {
+    const rows = parseBatchText(
+      `SKU-1\tX001\tMFG-1\t中文名\tItem One\t${storeName}`,
+    );
+    assert.equal(validateRecords(rows).canExport, true);
+  }
+});
+
+test("validateRecords rejects incorrect Store Name case", () => {
+  for (const storeName of ["na", "Eu", "walmart-us"]) {
+    const rows = parseBatchText(
+      `SKU-1\tX001\tMFG-1\t中文名\tItem One\t${storeName}`,
+    );
+    const result = validateRecords(rows);
+
+    assert.equal(result.canExport, false);
+    assert.match(
+      result.errors.find((error) => error.field === "storeName").message,
+      /must be one of/,
+    );
+  }
 });
 
 test("validateRecords blocks rows with missing required fields and invalid store values", () => {

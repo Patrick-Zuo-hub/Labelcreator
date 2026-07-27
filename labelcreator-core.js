@@ -1,11 +1,13 @@
 const EXPECTED_COLUMNS = 6;
-const ALLOWED_STORES = new Set(["NA", "EU", "AU", "Walmart-US"]);
+export const STORE_OPTIONS = Object.freeze(["NA", "EU", "AU", "Walmart-US"]);
+const ALLOWED_STORES = new Set(STORE_OPTIONS);
 const REQUIRED_FIELDS = [
   ["sku", "SKU"],
   ["fnsku", "FNSKU"],
   ["manufactureSku", "Manufacture SKU"],
   ["productChineseName", "产品中文名称"],
   ["itemName", "Item Name"],
+  ["storeName", "Store Name"],
 ];
 const GRID_COLUMNS = [
   "sku",
@@ -78,7 +80,7 @@ export function normalizeGridRowsForValidation(rows) {
       manufactureSku: cleanCell(row.manufactureSku),
       productChineseName: cleanCell(row.productChineseName),
       itemName: cleanCell(row.itemName),
-      storeName: cleanCell(row.storeName) || "NA",
+      storeName: cleanCell(row.storeName),
       condition: "NEW",
       rawColumns: GRID_COLUMNS.map((key) => cleanCell(row[key])),
     }));
@@ -118,7 +120,7 @@ export function parseBatchText(text) {
       manufactureSku: cleanCell(padded[2]),
       productChineseName: cleanCell(padded[3]),
       itemName: cleanCell(padded[4]),
-      storeName: cleanCell(padded[5]) || "NA",
+      storeName: cleanCell(padded[5]),
       condition: "NEW",
       rawColumns: columns.map(cleanCell),
     });
@@ -150,11 +152,11 @@ export function validateRecords(records) {
       }
     }
 
-    if (!ALLOWED_STORES.has(record.storeName)) {
+    if (record.storeName && !ALLOWED_STORES.has(record.storeName)) {
       rowErrors.push({
         rowNumber: record.rowNumber,
         field: "storeName",
-        message: `Row ${record.rowNumber}: Store Name must be one of NA, EU, AU, Walmart-US`,
+        message: `Row ${record.rowNumber}: Store Name must be one of ${STORE_OPTIONS.join(", ")}`,
       });
     }
 
