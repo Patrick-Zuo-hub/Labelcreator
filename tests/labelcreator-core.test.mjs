@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import {
   STORE_OPTIONS,
   createEmptyGridRows,
@@ -17,6 +18,7 @@ import { getStatusMessage, mountApp } from "../labelcreator-app.js";
 
 function createMockElement(tagName = "div") {
   const classNames = new Set();
+  const attributes = new Map();
   const element = {
     tagName,
     textContent: "",
@@ -68,7 +70,11 @@ function createMockElement(tagName = "div") {
       this.removed = true;
     },
     setAttribute(name, value) {
+      attributes.set(name, String(value));
       this[name] = value;
+    },
+    getAttribute(name) {
+      return attributes.get(name) ?? null;
     },
     querySelector(selector) {
       const match = selector.match(/^\[data-index="(\d+)"\]$/);
@@ -119,6 +125,7 @@ function setupMockAppDom() {
     "batchGridHint",
     "validationSummary",
     "batchGridBody",
+    "storeNameOptions",
   ];
 
   for (const id of ids) {
@@ -476,6 +483,96 @@ test("mountApp renders 10 editable grid rows by default with the fixed column hi
   } finally {
     restore();
   }
+});
+
+test("mountApp adds Store Name suggestions without defaulting the preview", () => {
+  const { elements, restore } = setupMockAppDom();
+
+  try {
+    assert.equal(mountApp(), true);
+
+    const datalist = elements.get("storeNameOptions");
+    const storeNameInput = getGridInput(elements, 0, 5);
+    const skuInput = getGridInput(elements, 0, 0);
+
+    assert.deepEqual(
+      datalist.children.map((option) => option.value),
+      STORE_OPTIONS,
+    );
+    assert.equal(storeNameInput.getAttribute("list"), "storeNameOptions");
+    assert.equal(skuInput.getAttribute("list"), null);
+    assert.equal(storeNameInput.value, "");
+    assert.equal(elements.get("vStoreName").textContent, "");
+  } finally {
+    restore();
+  }
+});
+
+test("mountApp immediately marks Store Name required for a populated row", () => {
+  const { elements, restore } = setupMockAppDom();
+
+  try {
+    assert.equal(mountApp(), true);
+
+    fillGridRow(elements, 0, [
+      "SKU-1",
+      "X001",
+      "MFG-1",
+      "中文名 1",
+      "Item One",
+    ]);
+
+    const storeNameCell = elements.get("batchGridBody").children[0].children[5];
+    const storeNameInput = storeNameCell.children[0];
+
+    assert.equal(storeNameCell.classList.contains("has-cell-error"), true);
+    assert.match(storeNameInput.title, /必填/);
+    assert.match(elements.get("recordInspector").textContent, /Store Name.*必填/);
+    assert.equal(elements.get("vStoreName").textContent, "");
+    assert.equal(elements.get("exportZip").disabled, true);
+  } finally {
+    restore();
+  }
+});
+
+test("mountApp keeps a missing pasted Store Name empty and clears the error after correction", () => {
+  const { elements, restore } = setupMockAppDom();
+
+  try {
+    assert.equal(mountApp(), true);
+
+    pasteIntoGridCell(
+      elements,
+      0,
+      0,
+      "SKU-1\tX001\tMFG-1\t中文名 1\tItem One\t",
+    );
+
+    let storeNameInput = getGridInput(elements, 0, 5);
+    assert.equal(storeNameInput.value, "");
+    assert.equal(storeNameInput.classList.contains("has-cell-error"), true);
+    assert.equal(elements.get("exportZip").disabled, true);
+
+    storeNameInput.value = "EU";
+    storeNameInput.listeners.input();
+    storeNameInput = getGridInput(elements, 0, 5);
+
+    assert.equal(storeNameInput.classList.contains("has-cell-error"), false);
+    assert.equal(elements.get("vStoreName").textContent, "EU");
+    assert.equal(elements.get("exportZip").disabled, false);
+  } finally {
+    restore();
+  }
+});
+
+test("Labelcreator.html provides the Store Name datalist and blank preview node", async () => {
+  const html = await readFile(
+    new URL("../Labelcreator.html", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(html, /<datalist id="storeNameOptions"><\/datalist>/);
+  assert.match(html, /<div class="label-line" id="vStoreName"><\/div>/);
 });
 
 test("mountApp shows a validation summary and cell-level errors after invalid input", () => {

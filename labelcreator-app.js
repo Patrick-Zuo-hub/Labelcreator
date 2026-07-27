@@ -1,4 +1,5 @@
 import {
+  STORE_OPTIONS,
   createEmptyGridRows,
   applyGridPaste,
   mapCellErrors,
@@ -15,7 +16,7 @@ const EMPTY_PREVIEW = {
   fnsku: "FNSKU",
   sku: "SKU",
   itemName: "Item Name",
-  storeName: "NA",
+  storeName: "",
   condition: "NEW",
 };
 
@@ -85,7 +86,7 @@ function formatRecordError(error) {
   }
 
   if (error.field === "storeName" && error.message.includes("must be one of")) {
-    return `${fieldLabel}: 仅支持 NA、EU、AU、Walmart-US`;
+    return `${fieldLabel}: 仅支持 ${STORE_OPTIONS.join("、")}`;
   }
 
   return `${fieldLabel}: ${error.message}`;
@@ -170,6 +171,7 @@ function mountApp() {
   const elements = {
     batchGridHint: document.getElementById("batchGridHint"),
     batchGridBody: document.getElementById("batchGridBody"),
+    storeNameOptions: document.getElementById("storeNameOptions"),
     clearData: document.getElementById("clearData"),
     validateData: document.getElementById("validateData"),
     exportZip: document.getElementById("exportZip"),
@@ -190,9 +192,23 @@ function mountApp() {
     },
   };
 
-  if (!elements.batchGridBody || !elements.status || !elements.clearData || !elements.validateData || !elements.exportZip) {
+  if (
+    !elements.batchGridBody ||
+    !elements.status ||
+    !elements.clearData ||
+    !elements.validateData ||
+    !elements.exportZip ||
+    !elements.storeNameOptions
+  ) {
     return false;
   }
+
+  elements.storeNameOptions.innerHTML = "";
+  STORE_OPTIONS.forEach((storeName) => {
+    const option = document.createElement("option");
+    option.value = storeName;
+    elements.storeNameOptions.appendChild(option);
+  });
 
   function renderPreview(record) {
     const previewRecord = record || EMPTY_PREVIEW;
@@ -328,7 +344,9 @@ function mountApp() {
         const input = cell.children[0];
         const fieldErrors = rowErrors[field] || [];
         const hasError = fieldErrors.length > 0;
-        const title = hasError ? fieldErrors.join("；") : FIELD_LABELS[field];
+        const title = hasError
+          ? fieldErrors.map((message) => formatRecordError({ field, message })).join("；")
+          : FIELD_LABELS[field];
 
         cell.classList.toggle("has-cell-error", hasError);
         input.classList.toggle("has-cell-error", hasError);
@@ -421,6 +439,10 @@ function mountApp() {
         input.dataset.row = String(rowIndex);
         input.dataset.field = field;
         input.setAttribute("aria-label", `${FIELD_LABELS[field]} 第 ${rowIndex + 1} 行`);
+
+        if (field === "storeName") {
+          input.setAttribute("list", "storeNameOptions");
+        }
 
         input.addEventListener("focus", () => {
           selectRow(rowIndex);
