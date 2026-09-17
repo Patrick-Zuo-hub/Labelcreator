@@ -11,6 +11,7 @@ const LABEL_MM = {
   itemTop: 19.0,
   skuTop: 22.1,
   bottomTop: 25.1,
+  countryFont: 2.4,
 };
 
 const CODE128_PATTERNS = [
@@ -230,8 +231,8 @@ export function buildPdf(labelData) {
     return pageHeightPt - mmToPt(topMm) - (fontPt * ascentFactor);
   }
 
-  function pushText(text, topMm, align, maxWidthMm) {
-    const fontPt = fitFontPt(text, maxWidthMm, LABEL_MM.font);
+  function pushText(text, topMm, align, maxWidthMm, baseFontMm = LABEL_MM.font) {
+    const fontPt = fitFontPt(text, maxWidthMm, baseFontMm);
     const textWidthPt = pdfTextWidthPt(text, fontPt * 96 / 72);
     let xPt = marginXPt;
 
@@ -266,6 +267,7 @@ export function buildPdf(labelData) {
   pushText(labelData.itemName, LABEL_MM.itemTop, "left", LABEL_MM.width - LABEL_MM.marginX * 2);
   pushText(labelData.sku, LABEL_MM.skuTop, "left", (LABEL_MM.width - LABEL_MM.marginX * 2) * 0.76);
   pushText(labelData.condition, LABEL_MM.bottomTop, "left", (LABEL_MM.width - LABEL_MM.marginX * 2) * 0.42);
+  pushText("Made in China", LABEL_MM.bottomTop, "center", 18, LABEL_MM.countryFont);
   pushText(labelData.storeName, LABEL_MM.bottomTop, "right", (LABEL_MM.width - LABEL_MM.marginX * 2) * 0.26);
 
   const stream = ops.join("\n");

@@ -188,6 +188,7 @@ function mountApp() {
       itemName: document.getElementById("vItemName"),
       storeName: document.getElementById("vStoreName"),
       condition: document.getElementById("vCondition"),
+      countryOfOrigin: document.getElementById("vCountryOfOrigin"),
       barcode: document.getElementById("barcodePreview"),
     },
   };
@@ -219,6 +220,7 @@ function mountApp() {
     elements.preview.itemName.textContent = previewRecord.itemName;
     elements.preview.storeName.textContent = previewRecord.storeName;
     elements.preview.condition.textContent = previewRecord.condition;
+    elements.preview.countryOfOrigin.textContent = "Made in China";
 
     try {
       const svg = barcodeSvgMarkup(previewRecord.fnsku);

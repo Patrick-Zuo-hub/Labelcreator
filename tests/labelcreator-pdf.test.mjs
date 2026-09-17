@@ -73,9 +73,10 @@ test("buildPdf returns an application/pdf blob for ASCII label content", async (
   assert.ok(pdf.startsWith("%PDF-1.4"));
   assert.match(pdf, /\/MediaBox \[0 0 170\.08 85\.04\]/);
   assert.match(pdf, /\/BaseFont \/Helvetica/);
-  assert.equal((pdf.match(/BT \/F1 7\.94 Tf/g) || []).length, 6);
+  assert.equal((pdf.match(/BT \/F1 /g) || []).length, 7);
   assert.match(pdf, /\(25W027\) Tj ET/);
   assert.match(pdf, /\(X0050P4BTR\) Tj ET/);
+  assert.match(pdf, /\(Made in China\) Tj ET/);
 });
 
 test("buildPdf uses Code 128 C for pure numeric even-length fnsku values", async () => {

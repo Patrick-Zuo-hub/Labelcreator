@@ -121,6 +121,7 @@ function setupMockAppDom() {
     "vItemName",
     "vStoreName",
     "vCondition",
+    "vCountryOfOrigin",
     "barcodePreview",
     "batchGridHint",
     "validationSummary",
@@ -573,6 +574,17 @@ test("Labelcreator.html provides the Store Name datalist and blank preview node"
 
   assert.match(html, /<datalist id="storeNameOptions"><\/datalist>/);
   assert.match(html, /<div class="label-line" id="vStoreName"><\/div>/);
+});
+
+test("mountApp always shows the fixed country of origin in the label preview", () => {
+  const { elements, restore } = setupMockAppDom();
+
+  try {
+    assert.equal(mountApp(), true);
+    assert.equal(elements.get("vCountryOfOrigin").textContent, "Made in China");
+  } finally {
+    restore();
+  }
 });
 
 test("mountApp shows a validation summary and cell-level errors after invalid input", () => {
